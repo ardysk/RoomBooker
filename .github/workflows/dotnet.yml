@@ -33,4 +33,4 @@ jobs:
           dotnet build RoomBooker.Api/RoomBooker.Api.csproj --configuration Release --no-restore
           
       - name: Run tests
-        run: dotnet test RoomBooker.Tests/RoomBooker.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=test_results.trx"
+        run: dotnet test RoomBooker.Tests/RoomBooker.Tests.csproj --configuration Release --no-build
