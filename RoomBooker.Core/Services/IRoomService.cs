@@ -16,4 +16,3 @@ namespace RoomBooker.Core.Services
         Task<bool> DeactivateAsync(int id);
     }
 }
-

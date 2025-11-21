@@ -1,25 +1,27 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace RoomBooker.Core.Entities
 {
     public class AuditLog
     {
+        // KLUCZ GŁÓWNY – MUSI BYĆ LogId
         public int LogId { get; set; }
 
-        // Kto wykonał akcję (może być null np. dla błędów systemowych)
+        // Kto wykonał akcję (może być null np. dla logów systemowych)
         public int? UserId { get; set; }
         public User? User { get; set; }
 
-        // Np. "CreateReservation", "ApproveReservation", "LoginFailed", "Error500"
-        public string ActionType { get; set; } = default!;
+        // Co było modyfikowane
+        public string EntityType { get; set; } = default!; // np. "Reservation"
+        public int? EntityId { get; set; }                 // np. ID rezerwacji
 
-        public DateTime ActionTimestamp { get; set; } = DateTime.UtcNow;
+        // Jaka akcja: Create / Approve / Reject / Cancel itd.
+        public string Action { get; set; } = default!;
 
-        // Szczegóły (np. ReservationId, stary/nowy status)
+        // Szczegóły tekstowe
         public string? Details { get; set; }
+
+        // TO MUSI SIĘ NAZYWAĆ ActionTimestamp
+        public DateTime ActionTimestamp { get; set; } = DateTime.UtcNow;
     }
 }

@@ -13,9 +13,9 @@ namespace RoomBooker.Infrastructure.Data
         // Tabele
         public DbSet<User> Users => Set<User>();
         public DbSet<Room> Rooms => Set<Room>();
-        public DbSet<Reservation> Reservations => Set<Reservation>();
-        public DbSet<MaintenanceWindow> MaintenanceWindows => Set<MaintenanceWindow>();
-        public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+        public DbSet<Reservation> Reservations { get; set; } = default!;
+        public DbSet<MaintenanceWindow> MaintenanceWindows { get; set; } = default!;
+        public DbSet<AuditLog> AuditLogs { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

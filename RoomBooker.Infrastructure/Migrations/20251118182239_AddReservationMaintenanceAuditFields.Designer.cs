@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RoomBooker.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using RoomBooker.Infrastructure.Data;
 namespace RoomBooker.Infrastructure.Migrations
 {
     [DbContext(typeof(RoomBookerDbContext))]
-    partial class RoomBookerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251118182239_AddReservationMaintenanceAuditFields")]
+    partial class AddReservationMaintenanceAuditFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

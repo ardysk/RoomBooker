@@ -1,44 +1,52 @@
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using RoomBooker.Infrastructure.Data;
-using RoomBooker.Core.Services;
-using RoomBooker.Infrastructure.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1) Rejestrujemy kontrolery (zamiast Razor Pages)
-builder.Services.AddControllers();
+// Konfiguracja JWT
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+        };
+    });
 
-// 2) Swagger – ¿eby mieæ dokumentacjê / testowanie endpointów
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-builder.Services.AddDbContext<RoomBookerDbContext>(options =>
+// Dodaj us³ugê Swaggera
+builder.Services.AddSwaggerGen(c =>
 {
-    options.UseSqlServer(connectionString);
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "RoomBooker API", Version = "v1" });
 });
 
-builder.Services.AddScoped<IRoomService, RoomService>();
-
-// (Na póŸniej – tu bêdziemy dodawaæ DbContext, serwisy domenowe, auth itd.)
+builder.Services.AddControllers();
+builder.Services.AddDbContext<RoomBookerDbContext>();
 
 var app = builder.Build();
 
-// 3) Swagger tylko w trybie deweloperskim (na potrzeby projektu mo¿esz mieæ zawsze)
+// Ustawienie middleware do autentykacji i autoryzacji
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Konfiguracja Swagger UI
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "RoomBooker API v1");
+        c.RoutePrefix = string.Empty; // Swagger bêdzie dostêpny na root URL
+    });
 }
 
-app.UseHttpsRedirection();
-
-// (Tu kiedyœ dodamy app.UseAuthentication();)
-app.UseAuthorization();
-
-// 4) Mapujemy kontrolery
 app.MapControllers();
-
 app.Run();
