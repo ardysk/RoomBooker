@@ -1,35 +1,29 @@
-name: .NET Core CI
+name: .NET Build & Tests
 
 on:
   push:
-    branches:
-      - main
+    branches: [ master ]
   pull_request:
-    branches:
-      - main
+    branches: [ master ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        sdk: [7.0, 8.0]
-    
     steps:
-    - name: Check out code
-      uses: actions/checkout@v2
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Set up .NET SDK
-      uses: actions/setup-dotnet@v2
-      with:
-        dotnet-version: ${{ matrix.sdk }}
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
 
-    - name: Restore dependencies
-      run: dotnet restore
+      - name: Restore
+        run: dotnet restore
 
-    - name: Build the project
-      run: dotnet build --no-restore
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
 
-    - name: Run tests
-      run: dotnet test --no-build --verbosity normal
+      - name: Run tests
+        run: dotnet test RoomBooker.Tests/RoomBooker.Tests.csproj --no-build --configuration Release
