@@ -1,10 +1,10 @@
-name: .NET Build & Tests
+name: .NET Backend CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
 
 jobs:
   build-and-test:
@@ -19,17 +19,18 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore solution
-        run: dotnet restore
+      - name: Restore backend projects
+        run: |
+          dotnet restore RoomBooker.Core/RoomBooker.Core.csproj
+          dotnet restore RoomBooker.Infrastructure/RoomBooker.Infrastructure.csproj
+          dotnet restore RoomBooker.Api/RoomBooker.Api.csproj
+          dotnet restore RoomBooker.Tests/RoomBooker.Tests.csproj
 
-      - name: Build API
-        run: dotnet build RoomBooker.Api/RoomBooker.Api.csproj --no-restore --configuration Release
-
-      - name: Build Infrastructure
-        run: dotnet build RoomBooker.Infrastructure/RoomBooker.Infrastructure.csproj --no-restore --configuration Release
-
-      - name: Build Core
-        run: dotnet build RoomBooker.Core/RoomBooker.Core.csproj --no-restore --configuration Release
-
+      - name: Build backend
+        run: |
+          dotnet build RoomBooker.Core/RoomBooker.Core.csproj --configuration Release --no-restore
+          dotnet build RoomBooker.Infrastructure/RoomBooker.Infrastructure.csproj --configuration Release --no-restore
+          dotnet build RoomBooker.Api/RoomBooker.Api.csproj --configuration Release --no-restore
+          
       - name: Run tests
-        run: dotnet test RoomBooker.Tests/RoomBooker.Tests.csproj --no-build --configuration Release
+        run: dotnet test RoomBooker.Tests/RoomBooker.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=test_results.trx"
