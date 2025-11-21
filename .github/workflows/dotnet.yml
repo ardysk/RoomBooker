@@ -2,9 +2,9 @@ name: .NET Build & Tests
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build-and-test:
@@ -19,11 +19,17 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore
+      - name: Restore solution
         run: dotnet restore
 
-      - name: Build
-        run: dotnet build --no-restore --configuration Release
+      - name: Build API
+        run: dotnet build RoomBooker.Api/RoomBooker.Api.csproj --no-restore --configuration Release
+
+      - name: Build Infrastructure
+        run: dotnet build RoomBooker.Infrastructure/RoomBooker.Infrastructure.csproj --no-restore --configuration Release
+
+      - name: Build Core
+        run: dotnet build RoomBooker.Core/RoomBooker.Core.csproj --no-restore --configuration Release
 
       - name: Run tests
         run: dotnet test RoomBooker.Tests/RoomBooker.Tests.csproj --no-build --configuration Release
