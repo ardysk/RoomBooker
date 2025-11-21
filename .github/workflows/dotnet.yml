@@ -1,4 +1,4 @@
-name: Backend CI (.NET)
+name: .NET Backend CI
 
 on:
   push:
@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup .NET 8 SDK
+      - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
@@ -32,6 +32,6 @@ jobs:
           dotnet build RoomBooker.Infrastructure/RoomBooker.Infrastructure.csproj --configuration Release --no-restore
           dotnet build RoomBooker.Api/RoomBooker.Api.csproj --configuration Release --no-restore
 
-      - name: Run backend tests
-        run: |
-          dotnet test RoomBooker.Tests/RoomBooker.Tests.csproj --configuration Release --no-build
+      - name: Run tests
+        working-directory: RoomBooker.Tests
+        run: dotnet test --configuration Release --no-build
