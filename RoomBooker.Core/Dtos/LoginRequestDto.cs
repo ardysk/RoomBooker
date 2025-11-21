@@ -6,11 +6,11 @@ namespace RoomBooker.Core.Dtos
     {
         [Required(ErrorMessage = "Email jest wymagany.")]
         [EmailAddress(ErrorMessage = "Niepoprawny format emaila.")]
-        public string Email { get; set; } = default!;
+        public required string Email { get; set; }
 
         [Required(ErrorMessage = "Hasło jest wymagane.")]
         [StringLength(100, MinimumLength = 6, ErrorMessage = "Hasło musi mieć co najmniej 6 znaków.")]
-        public string Password { get; set; } = default!;
+        public required string Password { get; set; }
     }
 
     public class AuthResponseDto
