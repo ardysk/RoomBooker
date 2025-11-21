@@ -33,5 +33,4 @@ jobs:
           dotnet build RoomBooker.Api/RoomBooker.Api.csproj --configuration Release --no-restore
 
       - name: Run tests
-        working-directory: RoomBooker.Tests
-        run: dotnet test --configuration Release --no-build
+        run: dotnet test RoomBooker.Tests/RoomBooker.Tests.csproj --configuration Release --no-restore
