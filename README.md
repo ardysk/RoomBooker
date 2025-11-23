@@ -123,6 +123,8 @@ erDiagram
         int Rating
         string Comment
     }
+    ```
+
     ## 5. SQL Programmability Details
 
 The project meets advanced database requirements by implementing raw SQL logic directly on the server side.
