@@ -1,4 +1,4 @@
-# RoomBooker - Enterprise Room Reservation System
+﻿# RoomBooker - Enterprise Room Reservation System
 
 **RoomBooker** is a robust, enterprise-level web application designed to streamline the management of corporate or academic resources. The system eliminates the critical issue of "double bookings," ensures transparency in resource availability, and automates scheduling workflows through seamless integration with Google Calendar.
 
@@ -44,19 +44,19 @@ The solution implements **Clean Architecture** principles to ensure separation o
 
 This project meets and exceeds all academic requirements:
 
-### ? Backend & Business Logic
+### 💻 Backend & Business Logic
 * **N-Tier Architecture:** Strict separation of API, Logic, and Data Access layers.
 * **Comprehensive CRUD:** Full management for Rooms, Users, and Reservations.
 * **Advanced Conflict Detection:** A mathematical algorithm checks for time overlaps in real-time, preventing double bookings.
 * **Global Error Handling:** Centralized exception handling returning appropriate HTTP status codes (400, 401, 404, 500).
 
-### ? Advanced Database Implementation (SQL Server)
+### 🗄️ Advanced Database Implementation (SQL Server)
 The system leverages native SQL capabilities beyond standard ORM:
 * **Trigger (`trg_Reservations_Audit`):** Automatically logs every `INSERT` or `UPDATE` on the `Reservations` table into the immutable `AuditLogs` table, tracking who changed what and when.
 * **Stored Procedure (`sp_GetMonthlyRoomStats`):** Performs server-side data aggregation to generate performance reports (e.g., room occupancy per month).
 * **User-Defined Function (`fn_GetReservationDurationHours`):** A scalar function used within reports to calculate meeting durations accurately.
 
-### ? Modern Frontend (Blazor)
+### 🖥️ Modern Frontend (Blazor)
 * **Responsive UI:** Fully functional on desktop and mobile devices.
 * **Dynamic Role-Based UI:** Menus and buttons adapt dynamically based on the user's role (e.g., "Manage Rooms" is invisible to standard users).
 * **Google Calendar Sync (Killer Feature):** Users can link their Google Account via OAuth2. Approved reservations are pushed to their primary calendar asynchronously in the background (using `Task.Run` to maintain UI responsiveness).
@@ -69,18 +69,18 @@ The application relies on a relational SQL Server database with the following st
 
 ```mermaid
 erDiagram
-    User ||--o{ Reservation : "creates"
-    User ||--o{ AuditLog : "triggers"
-    User ||--o{ Review : "writes"
-    Room ||--o{ Reservation : "hosts"
-    Room ||--o{ MaintenanceWindow : "has"
-    Room ||--o{ Review : "receives"
+    User ||--o{ Reservation : creates
+    User ||--o{ AuditLog : triggers
+    User ||--o{ Review : writes
+    Room ||--o{ Reservation : hosts
+    Room ||--o{ MaintenanceWindow : has
+    Room ||--o{ Review : receives
     
     User {
         int UserId PK
-        string Email "Unique Index"
+        string Email
         string HashedPassword
-        string Role "Admin/User"
+        string Role
         string GoogleAccessToken
         string GoogleRefreshToken
     }
@@ -98,7 +98,7 @@ erDiagram
         int RoomId FK
         datetime StartTimeUtc
         datetime EndTimeUtc
-        string Status "Pending/Approved/Rejected"
+        string Status
         string Purpose
     }
 
@@ -106,7 +106,7 @@ erDiagram
         int LogId PK
         string Action
         string Details
-        datetime ActionTimestamp "Default GETDATE()"
+        datetime ActionTimestamp
     }
 
     MaintenanceWindow {
@@ -123,9 +123,9 @@ erDiagram
         int Rating
         string Comment
     }
-    ```
+```
 
-    ## 5. SQL Programmability Details
+## 5. SQL Programmability Details
 
 The project meets advanced database requirements by implementing raw SQL logic directly on the server side.
 
@@ -150,6 +150,7 @@ BEGIN
     FROM inserted i
     LEFT JOIN deleted d ON i.ReservationId = d.ReservationId
 END
+```
 
 ### 2. Helper Function
 A scalar function used to calculate the duration of a reservation in hours. This logic is reused in reporting procedures.
@@ -161,6 +162,8 @@ AS
 BEGIN
     RETURN DATEDIFF(HOUR, @Start, @End);
 END;
+```
+
 ### 3. Reporting Stored Procedure
 Generates aggregated statistics for the admin dashboard, calculating total reservations and hours per room for a specific month.
 
@@ -179,6 +182,7 @@ BEGIN
     WHERE MONTH(res.StartTimeUtc) = @Month AND YEAR(res.StartTimeUtc) = @Year
     GROUP BY r.Name;
 END;
+```
 
 ## 6. Setup & Installation Guide
 
@@ -227,6 +231,7 @@ dotnet run
 # Terminal 2 (Frontend)
 cd RoomBooker.Frontend
 dotnet run
+```
 
 ---
 
