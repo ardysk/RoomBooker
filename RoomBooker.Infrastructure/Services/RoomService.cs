@@ -97,5 +97,30 @@ namespace RoomBooker.Infrastructure.Services
             await _db.SaveChangesAsync();
             return true;
         }
+
+        public async Task<IEnumerable<RoomStatDto>> GetMonthlyStatsAsync(int month, int year)
+        {
+            var result = await _db.Database
+                .SqlQuery<RoomStatDto>($"EXEC dbo.sp_GetMonthlyRoomStats {month}, {year}")
+                .ToListAsync();
+
+            return result;
+        }
+        public async Task<byte[]> GenerateCsvReportAsync(int month, int year)
+        {
+            var stats = await GetMonthlyStatsAsync(month, year);
+            var sb = new System.Text.StringBuilder();
+
+            // Header CSV
+            sb.AppendLine("Nazwa Sali,Liczba Rezerwacji,Suma Godzin");
+
+            // Data
+            foreach (var s in stats)
+            {
+                sb.AppendLine($"{s.RoomName},{s.ReservationCount},{s.TotalHours}");
+            }
+
+            return System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        }
     }
 }

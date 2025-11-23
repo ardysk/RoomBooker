@@ -1,0 +1,69 @@
+﻿@page "/users"
+@using Microsoft.AspNetCore.Authorization
+@using RoomBooker.Core.Dtos
+@attribute [Authorize(Roles = "Admin")]
+@inject RoomBooker.Frontend.Services.ApiClient Api
+@inject IJSRuntime JS
+
+<h3>Zarządzanie Użytkownikami</h3>
+
+@if (_users == null)
+{
+    <p>Wczytywanie...</p>
+}
+else
+{
+    <table class="table table-striped table-light table-hover shadow-sm rounded-3 overflow-hidden">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Nazwa</th>
+                <th>Email</th>
+                <th>Rola</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in _users)
+            {
+                <tr>
+                    <td>@user.UserId</td>
+                    <td>@user.DisplayName</td>
+                    <td>@user.Email</td>
+                    <td>
+                        <span class="badge @(user.Role == "Admin" ? "bg-danger" : "bg-primary")">
+                            @user.Role
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteUser(user)">Usuń</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<UserDto>? _users;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        _users = await Api.GetUsersAsync();
+    }
+
+    private async Task DeleteUser(UserDto user)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Czy na pewno chcesz usunąć użytkownika {user.DisplayName}?");
+        if (confirmed)
+        {
+            await Api.DeleteUserAsync(user.UserId);
+            await LoadUsers();
+        }
+    }
+}

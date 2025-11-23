@@ -1,23 +1,94 @@
 ﻿@inherits LayoutComponentBase
+@using RoomBooker.Frontend.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthState Auth
+@inject NavigationManager Nav
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="app-shell d-flex flex-column min-vh-100">
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+            <div class="container-fluid">
+                <a class="navbar-brand fw-bold" href="">RoomBooker</a>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
 
-        <article class="content px-4">
+                <div class="collapse navbar-collapse" id="mainNavbar">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Strona główna</NavLink>
+                        </li>
+
+                        <AuthorizeView>
+                            <Authorized>
+                                <li class="nav-item">
+                                    <NavLink class="nav-link" href="reservations">Rezerwacje</NavLink>
+                                </li>
+                            </Authorized>
+                        </AuthorizeView>
+
+                        <AuthorizeView Roles="Admin">
+                            <Authorized>
+                                <li class="nav-item">
+                                    <NavLink class="nav-link" href="rooms">Sale</NavLink>
+                                </li>
+                                <li class="nav-item">
+                                    <NavLink class="nav-link" href="reports">Raporty</NavLink>
+                                </li>
+                                <li class="nav-item"
+                                    ><NavLink class="nav-link" href="users">Użytkownicy</NavLink>
+                                    </li>
+                            </Authorized>
+                        </AuthorizeView>
+
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="weather">Pogoda</NavLink>
+                        </li>
+                    </ul>
+
+                    <div class="d-flex align-items-center">
+                        <AuthorizeView>
+                            <Authorized>
+                                <span class="navbar-text me-3 text-white">
+                                    @context.User.Identity?.Name
+                                </span>
+                                <button class="btn btn-outline-light btn-sm" @onclick="Logout">
+                                    Wyloguj
+                                </button>
+                            </Authorized>
+                            <NotAuthorized>
+                                <a class="btn btn-outline-light btn-sm me-2" href="login">
+                                    Zaloguj
+                                </a>
+                                <a class="btn btn-success btn-sm" href="register">
+                                    Zarejestruj
+                                </a>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="flex-fill">
+        <div class="container py-4">
             @Body
-        </article>
+        </div>
     </main>
+
+    <footer class="bg-light border-top py-3 mt-auto">
+        <div class="container text-muted small text-center">
+            RoomBooker © @DateTime.Now.Year – projekt zaliczeniowy BD w AI
+        </div>
+    </footer>
 </div>
 
-<div id="blazor-error-ui">
-    An unhandled error has occurred.
-    <a href="" class="reload">Reload</a>
-    <a class="dismiss">🗙</a>
-</div>
+@code {
+    private async Task Logout()
+    {
+        await Auth.LogoutAsync();
+        Nav.NavigateTo("/login", forceLoad: false);
+    }
+}

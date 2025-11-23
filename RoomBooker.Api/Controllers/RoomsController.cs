@@ -52,5 +52,25 @@ namespace RoomBooker.Api.Controllers
             if (!ok) return NotFound();
             return NoContent();
         }
+
+        [HttpGet("stats")]
+        public async Task<ActionResult<IEnumerable<RoomStatDto>>> GetStats([FromQuery] int month, [FromQuery] int year)
+        {
+            var stats = await _roomService.GetMonthlyStatsAsync(month, year);
+            return Ok(stats);
+        }
+        [HttpPost("{roomId}/reviews")]
+        public async Task<IActionResult> AddReview(int roomId, [FromBody] ReviewDto dto)
+        {
+            await Task.CompletedTask;
+            return Ok();
+        }
+
+        [HttpGet("stats/csv")]
+        public async Task<IActionResult> DownloadCsv([FromQuery] int month, [FromQuery] int year)
+        {
+            var fileBytes = await _roomService.GenerateCsvReportAsync(month, year);
+            return File(fileBytes, "text/csv", $"Raport_{month}_{year}.csv");
+        }
     }
 }

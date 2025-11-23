@@ -6,6 +6,12 @@ namespace RoomBooker.Core.Dtos
     {
         public int RoomId { get; set; }
 
+        public int Id
+        {
+            get => RoomId;
+            set => RoomId = value;
+        }
+
         [Required(ErrorMessage = "Nazwa pokoju jest wymagana.")]
         [StringLength(100, ErrorMessage = "Nazwa pokoju nie może mieć więcej niż 100 znaków.")]
         public string Name { get; set; } = default!;
@@ -16,6 +22,14 @@ namespace RoomBooker.Core.Dtos
         [StringLength(500, ErrorMessage = "Opis wyposażenia nie może mieć więcej niż 500 znaków.")]
         public string? EquipmentDescription { get; set; }
 
+        public string? Description
+        {
+            get => EquipmentDescription;
+            set => EquipmentDescription = value;
+        }
+
         public bool IsActive { get; set; }
+
+        public string? Location { get; set; }
     }
 }

@@ -12,8 +12,8 @@ using RoomBooker.Infrastructure.Data;
 namespace RoomBooker.Infrastructure.Migrations
 {
     [DbContext(typeof(RoomBookerDbContext))]
-    [Migration("20251118064946_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20251123203459_AddReviews")]
+    partial class AddReviews
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,16 +33,23 @@ namespace RoomBooker.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LogId"));
 
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("ActionTimestamp")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<string>("ActionType")
-                        .IsRequired()
+                    b.Property<string>("Details")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Details")
+                    b.Property<int?>("EntityId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("UserId")
@@ -63,17 +70,19 @@ namespace RoomBooker.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BlockId"));
 
-                    b.Property<DateTime>("EndTime")
+                    b.Property<DateTime>("EndTimeUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Reason")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("RoomId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("StartTime")
+                    b.Property<DateTime>("StartTimeUtc")
                         .HasColumnType("datetime2");
 
                     b.HasKey("BlockId");
@@ -91,9 +100,6 @@ namespace RoomBooker.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReservationId"));
 
-                    b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<int?>("ApprovedBy")
                         .HasColumnType("int");
 
@@ -102,13 +108,20 @@ namespace RoomBooker.Infrastructure.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<DateTime>("EndTime")
+                    b.Property<DateTime>("EndTimeUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("RoomId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("StartTime")
+                    b.Property<DateTime>("StartTimeUtc")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
@@ -129,6 +142,38 @@ namespace RoomBooker.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Reservations");
+                });
+
+            modelBuilder.Entity("RoomBooker.Core.Entities.Review", b =>
+                {
+                    b.Property<int>("ReviewId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReviewId"));
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RoomId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ReviewId");
+
+                    b.HasIndex("RoomId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Reviews");
                 });
 
             modelBuilder.Entity("RoomBooker.Core.Entities.Room", b =>
@@ -191,6 +236,15 @@ namespace RoomBooker.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<string>("GoogleAccessToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GoogleRefreshToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("GoogleTokenExpiration")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("HashedPassword")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -212,7 +266,7 @@ namespace RoomBooker.Infrastructure.Migrations
                             UserId = 1,
                             DisplayName = "Administrator",
                             Email = "admin@roombooker.local",
-                            HashedPassword = "admin-hash-placeholder",
+                            HashedPassword = "$2a$11$OSx2yMm8OlJCUWX8qiX6Ce9iJLkf885O3xCOh86bGZOQ1S3Os0eyq",
                             Role = "Admin"
                         },
                         new
@@ -266,6 +320,25 @@ namespace RoomBooker.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("ApprovedByUser");
+
+                    b.Navigation("Room");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("RoomBooker.Core.Entities.Review", b =>
+                {
+                    b.HasOne("RoomBooker.Core.Entities.Room", "Room")
+                        .WithMany()
+                        .HasForeignKey("RoomId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RoomBooker.Core.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Room");
 

@@ -13,6 +13,9 @@ namespace RoomBooker.Core.Entities
         public string Email { get; set; } = default!;
         public string HashedPassword { get; set; } = default!;
         public string DisplayName { get; set; } = default!;
+        public string? GoogleAccessToken { get; set; }
+        public string? GoogleRefreshToken { get; set; }
+        public DateTime? GoogleTokenExpiration { get; set; }
 
         // "User" albo "Admin"
         public string Role { get; set; } = "User";

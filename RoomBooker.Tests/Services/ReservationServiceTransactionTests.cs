@@ -11,10 +11,6 @@ using Xunit;
 
 namespace RoomBooker.Tests.Services
 {
-    /// <summary>
-    /// Test „transakcyjny” – przy b³êdzie kolizji rezerwacji
-    /// nie powstaje ani nowa rezerwacja, ani nowy wpis w AuditLogs.
-    /// </summary>
     public class ReservationServiceTransactionTests
     {
         private RoomBookerDbContext CreateContext()
@@ -31,7 +27,7 @@ namespace RoomBooker.Tests.Services
         {
             using var db = CreateContext();
 
-            // SEED – istniej¹ca rezerwacja + log
+            // SEED
             db.Reservations.Add(new Reservation
             {
                 RoomId = 1,
@@ -57,7 +53,8 @@ namespace RoomBooker.Tests.Services
             var initialReservations = db.Reservations.Count();
             var initialAuditLogs = db.AuditLogs.Count();
 
-            var service = new ReservationService(db);
+            var googleService = new GoogleAuthService(null!);
+            var service = new ReservationService(db, googleService);
 
             var dto = new ReservationDto
             {

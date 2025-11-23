@@ -30,9 +30,9 @@ namespace RoomBooker.Infrastructure.Services
             if (user is null)
                 return null;
 
-            // ⚠️ PROSTO: hasło wprost w kolumnie HashedPassword
-            // Na potrzeby projektu: wpisujesz w bazie "admin123" itd.
-            if (user.HashedPassword != password)
+            bool verified = BCrypt.Net.BCrypt.Verify(password, user.HashedPassword);
+
+            if (!verified)
                 return null;
 
             var token = GenerateJwtToken(user);

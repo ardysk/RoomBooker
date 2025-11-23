@@ -12,6 +12,8 @@ namespace RoomBooker.Core.Dtos
         [StringLength(100, MinimumLength = 6, ErrorMessage = "Hasło musi mieć co najmniej 6 znaków.")]
         public string Password { get; set; } = default!;
 
+        public string FullName { get; set; } = string.Empty;
+
         [Required(ErrorMessage = "Nazwa użytkownika jest wymagana.")]
         public string DisplayName { get; set; } = default!;
     }

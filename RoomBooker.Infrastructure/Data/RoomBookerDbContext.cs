@@ -10,65 +10,66 @@ namespace RoomBooker.Infrastructure.Data
         {
         }
 
-        // Tabele
+        // Tabels
         public DbSet<User> Users => Set<User>();
         public DbSet<Room> Rooms => Set<Room>();
         public DbSet<Reservation> Reservations { get; set; } = default!;
         public DbSet<MaintenanceWindow> MaintenanceWindows { get; set; } = default!;
         public DbSet<AuditLog> AuditLogs { get; set; } = default!;
+        public DbSet<Review> Reviews { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Klucze główne
+            // Primary keys
             modelBuilder.Entity<User>().HasKey(u => u.UserId);
             modelBuilder.Entity<Room>().HasKey(r => r.RoomId);
             modelBuilder.Entity<Reservation>().HasKey(r => r.ReservationId);
             modelBuilder.Entity<MaintenanceWindow>().HasKey(m => m.BlockId);
             modelBuilder.Entity<AuditLog>().HasKey(a => a.LogId);
 
-            // Unikalny e-mail
+            // Unique e-mail
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
-            // Relacja User → Reservations (kto złożył rezerwację)
+            // Relacion User → Reservations
             modelBuilder.Entity<Reservation>()
                 .HasOne(r => r.User)
                 .WithMany(u => u.Reservations)
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Relacja User → ApprovedByUser (admin zatwierdzający)
+            // Relacion User → ApprovedByUser 
             modelBuilder.Entity<Reservation>()
                 .HasOne(r => r.ApprovedByUser)
                 .WithMany()
                 .HasForeignKey(r => r.ApprovedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Relacja Room → Reservations
+            // Relacion Room → Reservations
             modelBuilder.Entity<Reservation>()
                 .HasOne(r => r.Room)
                 .WithMany(room => room.Reservations)
                 .HasForeignKey(r => r.RoomId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Relacja Room → MaintenanceWindows
+            // Relacion Room → MaintenanceWindows
             modelBuilder.Entity<MaintenanceWindow>()
                 .HasOne(m => m.Room)
                 .WithMany(room => room.MaintenanceWindows)
                 .HasForeignKey(m => m.RoomId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Relacja User → AuditLog
+            // Relacion → AuditLog
             modelBuilder.Entity<AuditLog>()
                 .HasOne(a => a.User)
                 .WithMany(u => u.AuditLogs)
                 .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // Domyślne wartości
+            // Default val's
             modelBuilder.Entity<Reservation>()
                 .Property(r => r.Status)
                 .HasDefaultValue("Pending");
@@ -81,13 +82,13 @@ namespace RoomBooker.Infrastructure.Data
                 .Property(a => a.ActionTimestamp)
                 .HasDefaultValueSql("GETUTCDATE()");
 
-            // 👇 Dane startowe (seed) – admin, zwykły user i 2 sale
+            // seeded valuse
             modelBuilder.Entity<User>().HasData(
                 new User
                 {
                     UserId = 1,
                     Email = "admin@roombooker.local",
-                    HashedPassword = "admin-hash-placeholder",
+                    HashedPassword = BCrypt.Net.BCrypt.HashPassword("admin123"),
                     DisplayName = "Administrator",
                     Role = "Admin"
                 },
@@ -100,6 +101,18 @@ namespace RoomBooker.Infrastructure.Data
                     Role = "User"
                 }
             );
+
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.Room)
+                .WithMany()
+                .HasForeignKey(r => r.RoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Review>()
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Room>().HasData(
                 new Room
@@ -120,5 +133,6 @@ namespace RoomBooker.Infrastructure.Data
                 }
             );
         }
+
     }
 }

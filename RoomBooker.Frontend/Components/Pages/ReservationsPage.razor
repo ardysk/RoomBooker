@@ -1,0 +1,271 @@
+﻿@page "/reservations"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize] 
+@using RoomBooker.Core.Dtos
+@inject RoomBooker.Frontend.Services.ApiClient Api
+@inject NavigationManager Nav
+@inject RoomBooker.Frontend.Services.AuthState Auth
+
+<h3>Rezerwacje</h3>
+
+@if (_isLoading)
+{
+    <p>Wczytywanie rezerwacji...</p>
+}
+else if (_loadError is not null)
+{
+    <div class="alert alert-danger">@_loadError</div>
+}
+else
+{
+        @if (_isGoogleConnected)
+        {
+            <div class="alert alert-success py-2">
+                ✅ Połączono z Google Calendar
+            </div>
+        }
+        else
+        {
+            <button class="btn btn-outline-danger mb-3" @onclick="ConnectGoogle">
+                🔗 Połącz z Google Calendar
+            </button>
+        }
+    <div class="mb-3">
+        <label class="form-label">Filtr sala:</label>
+        <select class="form-select" @bind="_filterRoomId">
+            <option value="">(wszystkie)</option>
+            @foreach (var room in _rooms)
+            {
+                <option value="@room.Id">@room.Name</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label">Status:</label>
+        <select class="form-select" @bind="_filterStatus">
+            <option value="">(wszystkie)</option>
+            <option>Pending</option>
+            <option>Confirmed</option>
+            <option>Rejected</option>
+            <option>Cancelled</option>
+        </select>
+    </div>
+
+    <h5>Lista rezerwacji</h5>
+    <table class="table table-striped table-light table-hover shadow-sm rounded-3 overflow-hidden">
+        <thead>
+        <tr>
+            <th>Id</th>
+            <th>Sala</th>
+            <th>Od</th>
+            <th>Do</th>
+            <th>Status</th>
+            <th>Cel</th>
+            <th>Akcje</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var r in FilteredReservations)
+        {
+            <tr>
+                <td>@r.Id</td>
+                <td>@r.RoomName</td>
+                <td>@r.StartTimeUtc.ToLocalTime()</td>
+                <td>@r.EndTimeUtc.ToLocalTime()</td>
+                <td>@r.Status</td>
+                <td>@r.Purpose</td>
+                <td>
+                    <AuthorizeView Roles="Admin">
+                        <Authorized>
+                            @if (r.Status == "Pending")
+                            {
+                                <button class="btn btn-sm btn-success me-1" @onclick="() => ApproveAsync(r.Id)">Zatwierdź</button>
+                                <button class="btn btn-sm btn-warning me-1" @onclick="() => RejectAsync(r.Id)">Odrzuć</button>
+                            }
+                        </Authorized>
+                    </AuthorizeView>
+
+                    @if (r.Status == "Confirmed" || r.Status == "Pending")
+                    {
+                        <button class="btn btn-sm btn-danger" @onclick="() => CancelAsync(r.Id)">Anuluj</button>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+
+    <hr />
+
+<h5>Nowa rezerwacja</h5>
+    <EditForm Model="_newReservation" OnSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-2">
+        <label class="form-label">Sala</label>
+        <select class="form-select" @bind="_newReservation.RoomId">
+            @foreach (var room in _rooms.Where(r => r.IsActive))
+            {
+                <option value="@room.Id">@room.Name</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Od</label>
+        <InputDate TValue="DateTime" class="form-control" @bind-Value="_startDate" />
+        <input type="time" class="form-control mt-1" @bind="_startTime" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Do</label>
+        <InputDate TValue="DateTime" class="form-control" @bind-Value="_endDate" />
+        <input type="time" class="form-control mt-1" @bind="_endTime" />
+    </div>
+
+    <div class="mb-2">
+        <label class="form-label">Cel</label>
+        <InputTextArea class="form-control" @bind-Value="_newReservation.Purpose" />
+    </div>
+
+    <button type="submit" class="btn btn-primary">Zarezerwuj</button>
+</EditForm>
+}
+
+@code {
+    private List<ReservationDto> _reservations = new();
+    private List<RoomDto> _rooms = new();
+    private ReservationCreateDto _newReservation = new();
+
+    private bool _isLoading = true;
+    private string? _loadError;
+
+    private int? _filterRoomId;
+    private string? _filterStatus;
+    private DateTime _startDate = DateTime.Today;
+    private TimeOnly _startTime = new(9, 0);
+    private DateTime _endDate = DateTime.Today;
+    private TimeOnly _endTime = new(10, 0);
+
+    private bool _isGoogleConnected = false;
+    private bool _isInitialized = false;
+
+    private IEnumerable<ReservationDto> FilteredReservations =>
+        _reservations.Where(r =>
+            (_filterRoomId == null || r.RoomId == _filterRoomId) &&
+            (string.IsNullOrEmpty(_filterStatus) || r.Status == _filterStatus));
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_isInitialized)
+        {
+            _isInitialized = true;
+
+            await Auth.GetAuthenticationStateAsync();
+
+            await LoadDataAsync();
+
+            if (Auth.IsAuthenticated && Auth.UserEmail != null)
+            {
+                _isGoogleConnected = await Api.IsGoogleConnectedAsync(Auth.UserEmail);
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+        StateHasChanged();
+
+        try
+        {
+            _rooms = await Api.GetRoomsAsync();
+
+            if (_rooms.Any())
+            {
+                _filterRoomId = _rooms.First().Id;
+
+                _reservations = await Api.GetReservationsForRoomAsync(_filterRoomId.Value);
+
+                _newReservation.RoomId = _rooms.First().Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (ex.Message.Contains("401"))
+            {
+                _loadError = "Sesja wygasła. Zaloguj się ponownie.";
+            }
+            else
+            {
+                _loadError = ex.Message;
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshReservationsAsync()
+    {
+        if (_filterRoomId is null)
+        {
+            _reservations.Clear();
+            return;
+        }
+        _reservations = await Api.GetReservationsForRoomAsync(_filterRoomId.Value);
+    }
+
+    private async Task HandleSubmit(EditContext context)
+    {
+        _newReservation.StartTimeUtc = _startDate.Date.Add(_startTime.ToTimeSpan());
+        _newReservation.EndTimeUtc = _endDate.Date.Add(_endTime.ToTimeSpan());
+
+        if (context.Validate())
+        {
+            var created = await Api.CreateReservationAsync(_newReservation);
+            _reservations.Add(created);
+
+            _newReservation = new ReservationCreateDto();
+            _startDate = DateTime.Today;
+            _startTime = new TimeOnly(9, 0);
+            _endDate = DateTime.Today;
+            _endTime = new TimeOnly(10, 0);
+        }
+    }
+
+    private async Task ApproveAsync(int id)
+    {
+        await Api.ApproveReservationAsync(id);
+        await RefreshReservationsAsync();
+    }
+
+    private async Task RejectAsync(int id)
+    {
+        await Api.RejectReservationAsync(id);
+        await RefreshReservationsAsync();
+    }
+
+    private async Task CancelAsync(int id)
+    {
+        await Api.CancelReservationAsync(id);
+        await RefreshReservationsAsync();
+    }
+
+    private async Task ConnectGoogle()
+    {
+        var url = await Api.GetGoogleAuthUrlAsync();
+        if (!string.IsNullOrEmpty(url))
+        {
+            Nav.NavigateTo(url, forceLoad: true);
+        }
+    }
+}

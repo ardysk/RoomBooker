@@ -1,0 +1,110 @@
+@page "/register"
+@using RoomBooker.Core.Dtos
+@inject RoomBooker.Frontend.Services.ApiClient Api
+@inject NavigationManager Nav
+
+<h3 class="text-white">Rejestracja</h3>
+
+<div class="auth-wrapper">
+    <div class="auth-card p-4" style="background-color: rgba(255,255,255,0.05); border-radius: 10px;">
+        <h4 class="text-white mb-3">Utwórz konto</h4>
+
+        <EditForm Model="_model" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
+            
+            <div class="text-danger mb-3">
+                <ValidationSummary />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-white">Nazwa u¿ytkownika (Login)</label>
+                <InputText class="form-control" @bind-Value="_model.DisplayName" placeholder="np. arusk86" />
+                <ValidationMessage For="@(() => _model.DisplayName)" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-white">Imiê i nazwisko</label>
+                <InputText class="form-control" @bind-Value="_model.FullName" placeholder="Arkadiusz Kowalczyk" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-white">E-mail</label>
+                <InputText class="form-control" @bind-Value="_model.Email" placeholder="email@example.com" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-white">Has³o</label>
+                <InputText type="password" class="form-control" @bind-Value="_model.Password" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-white">Powtórz has³o</label>
+                <InputText type="password" class="form-control" @bind-Value="_confirmPassword" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <div class="alert alert-danger">@_error</div>
+            }
+
+            @if (!string.IsNullOrEmpty(_success))
+            {
+                <div class="alert alert-success">@_success</div>
+            }
+
+            <button class="btn btn-primary w-100" type="submit" disabled="@_isBusy">
+                @(_isBusy ? "Rejestrowanie..." : "Zarejestruj siê")
+            </button>
+
+            <div class="text-center mt-3">
+                <small class="text-white-50">Masz ju¿ konto?
+                    <a href="login" class="text-white text-decoration-underline">Zaloguj siê</a>
+                </small>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private RegisterUserDto _model = new();
+    private string _confirmPassword = string.Empty;
+
+    private bool _isBusy;
+    private string? _error;
+    private string? _success;
+
+    private async Task HandleRegister()
+    {
+        _error = null;
+        _success = null;
+
+        if (_model.Password != _confirmPassword)
+        {
+            _error = "Has³a nie s¹ takie same.";
+            return;
+        }
+
+        _isBusy = true;
+
+        try
+        {
+            var ok = await Api.RegisterAsync(_model);
+            if (!ok)
+            {
+                _error = "Rejestracja nie powiod³a siê. SprawdŸ dane lub spróbuj ponownie.";
+            }
+            else
+            {
+                _success = "Konto zosta³o utworzone. Mo¿esz siê teraz zalogowaæ.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+}

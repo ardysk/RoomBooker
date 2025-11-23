@@ -12,8 +12,8 @@ using RoomBooker.Infrastructure.Data;
 namespace RoomBooker.Infrastructure.Migrations
 {
     [DbContext(typeof(RoomBookerDbContext))]
-    [Migration("20251118182239_AddReservationMaintenanceAuditFields")]
-    partial class AddReservationMaintenanceAuditFields
+    [Migration("20251123182110_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -112,6 +112,10 @@ namespace RoomBooker.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RejectionReason")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("RoomId")
@@ -200,6 +204,15 @@ namespace RoomBooker.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<string>("GoogleAccessToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GoogleRefreshToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("GoogleTokenExpiration")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("HashedPassword")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -221,7 +234,7 @@ namespace RoomBooker.Infrastructure.Migrations
                             UserId = 1,
                             DisplayName = "Administrator",
                             Email = "admin@roombooker.local",
-                            HashedPassword = "admin-hash-placeholder",
+                            HashedPassword = "$2a$11$1F2DIM0I/66nUgeJF6q6c.sEZFcd6oS7vAS3tmomVmquD.iv18NOm",
                             Role = "Admin"
                         },
                         new

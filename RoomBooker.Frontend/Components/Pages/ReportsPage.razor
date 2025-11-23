@@ -1,0 +1,86 @@
+﻿@page "/reports"
+@using RoomBooker.Core.Dtos
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject RoomBooker.Frontend.Services.ApiClient Api
+@inject IJSRuntime JS
+
+<PageTitle>Raporty</PageTitle>
+
+<div class="container">
+    <h3 class="mb-4">📊 Raport obłożenia sal</h3>
+
+    <div class="card p-4 mb-4 bg-light">
+        <div class="row align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Miesiąc</label>
+                <select class="form-select" @bind="_month">
+                    @for (int i = 1; i <= 12; i++)
+                    {
+                        <option value="@i">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(i)</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Rok</label>
+                <input type="number" class="form-control" @bind="_year" />
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary w-100" @onclick="LoadStats">Generuj Raport</button>
+            </div>
+            <button class="btn btn-outline-success ms-2" @onclick="DownloadCsv">📥 Pobierz CSV</button>
+        </div>
+    </div>
+
+    @if (_stats == null)
+    {
+        <div class="text-center text-muted mt-5">
+            <p>Wybierz parametry i kliknij "Generuj", aby zobaczyć dane.</p>
+        </div>
+    }
+    else if (!_stats.Any())
+    {
+        <div class="alert alert-warning">Brak rezerwacji w wybranym okresie.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Sala</th>
+                        <th class="text-center">Liczba Rezerwacji</th>
+                        <th class="text-center">Łączny Czas (Godziny)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in _stats)
+                    {
+                        <tr>
+                            <td class="fw-bold">@s.RoomName</td>
+                            <td class="text-center">@s.ReservationCount</td>
+                            <td class="text-center">@s.TotalHours h</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private int _month = DateTime.Now.Month;
+    private int _year = DateTime.Now.Year;
+    private List<RoomStatDto>? _stats;
+
+    private async Task LoadStats()
+    {
+        _stats = await Api.GetRoomStatsAsync(_month, _year);
+    }
+    private async Task DownloadCsv()
+    {
+        var fileStream = await Api.GetReportStreamAsync(_month, _year);
+        using var streamRef = new DotNetStreamReference(fileStream);
+        await JS.InvokeVoidAsync("downloadFileFromStream", $"Raport_{_month}_{_year}.csv", streamRef);
+    }
+}

@@ -1,0 +1,84 @@
+﻿@page "/google-callback"
+@using Microsoft.AspNetCore.WebUtilities
+@inject NavigationManager Nav
+@inject RoomBooker.Frontend.Services.ApiClient Api
+@inject RoomBooker.Frontend.Services.AuthState Auth
+
+<PageTitle>Łączenie z Google...</PageTitle>
+
+<div class="container mt-5 text-center">
+    @if (_isProcessing)
+    {
+        <div class="spinner-border text-primary" role="status"></div>
+        <h3 class="mt-3">Trwa łączenie z Kalendarzem Google...</h3>
+        <p>Proszę czekać, wymieniamy tokeny bezpieczeństwa.</p>
+    }
+    else if (_success)
+    {
+        <div class="alert alert-success">
+            <h4>Sukces!</h4>
+            <p>Twoje konto Google zostało połączone.</p>
+            <button class="btn btn-primary" @onclick="GoBack">Wróć do rezerwacji</button>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-danger">
+            <h4>Błąd</h4>
+            <p>Nie udało się połączyć z Google. @_errorMessage</p>
+            <button class="btn btn-secondary" @onclick="GoBack">Wróć</button>
+        </div>
+    }
+</div>
+@code {
+    private bool _isProcessing = true;
+    private bool _success = false;
+    private string? _errorMessage;
+    private bool _hasRun = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_hasRun)
+        {
+            _hasRun = true;
+
+            await Auth.GetAuthenticationStateAsync();
+
+            if (!Auth.IsAuthenticated || string.IsNullOrEmpty(Auth.UserEmail))
+            {
+                _errorMessage = "Utracono sesję logowania. Zaloguj się ponownie.";
+                _isProcessing = false;
+                StateHasChanged();
+                return;
+            }
+            await ProcessGoogleLogin(Auth.UserEmail);
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task ProcessGoogleLogin(string email)
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("code", out var code))
+        {
+            try
+            {
+                _success = await Api.ExchangeGoogleCodeAsync(code!, email);
+            }
+            catch (Exception ex)
+            {
+                _errorMessage = ex.Message;
+            }
+        }
+        else if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("error", out var error))
+        {
+            _errorMessage = $"Google zwróciło błąd: {error}";
+        }
+
+        _isProcessing = false;
+    }
+
+    private void GoBack() => Nav.NavigateTo("/reservations");
+}

@@ -1,0 +1,177 @@
+@page "/rooms"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]  
+@using RoomBooker.Core.Dtos
+@inject RoomBooker.Frontend.Services.ApiClient Api
+
+<h3>Sala konferencyjna – zarz¹dzanie pokojami</h3>
+
+@if (_isLoading)
+{
+    <p>Wczytywanie sal...</p>
+}
+else if (_loadError is not null)
+{
+    <div class="alert alert-danger">@_loadError</div>
+}
+else
+{
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h5>Dodaj now¹ salê</h5>
+            <EditForm Model="_newRoom" OnValidSubmit="CreateRoomAsync">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-2">
+                    <label>Nazwa</label>
+                    <InputText class="form-control" @bind-Value="_newRoom.Name" />
+                </div>
+
+                <div class="mb-2">
+                    <label>Pojemnoœæ</label>
+                    <InputNumber class="form-control" @bind-Value="_newRoom.Capacity" />
+                </div>
+
+                <button type="submit" class="btn btn-primary">Dodaj</button>
+            </EditForm>
+        </div>
+    </div>
+
+    <h5>Lista sal</h5>
+    <table class="table table-striped table-light table-hover shadow-sm rounded-3 overflow-hidden">
+        <thead>
+        <tr>
+            <th>Id</th>
+            <th>Nazwa</th>
+            <th>Pojemnoœæ</th>
+            <th>Aktywna</th>
+            <th>Akcje</th>
+        </tr>
+        </thead>
+        <tbody>
+        @foreach (var room in _rooms)
+        {
+            <tr class="@(!room.IsActive ? "table-secondary" : "")">
+                <td>@room.Id</td>
+                <td>
+                    @if (_editedRoom is not null && _editedRoom.Id == room.Id)
+                    {
+                        <InputText class="form-control" @bind-Value="_editedRoom.Name" />
+                    }
+                    else
+                    {
+                        @room.Name
+                    }
+                </td>
+                <td>
+                    @if (_editedRoom is not null && _editedRoom.Id == room.Id)
+                    {
+                        <InputNumber class="form-control" @bind-Value="_editedRoom.Capacity" />
+                    }
+                    else
+                    {
+                        @room.Capacity
+                    }
+                </td>
+                <td>@(room.IsActive ? "Tak" : "Nie")</td>
+                <td>
+                    @if (_editedRoom is not null && _editedRoom.Id == room.Id)
+                    {
+                        <button class="btn btn-sm btn-success me-2" @onclick="SaveEditAsync">Zapisz</button>
+                        <button class="btn btn-sm btn-secondary" @onclick="CancelEdit">Anuluj</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-outline-primary me-2" @onclick="() => StartEdit(room)">Edytuj</button>
+                        @if (room.IsActive)
+                        {
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeactivateAsync(room.Id)">Dezaktywuj</button>
+                        }
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<RoomDto> _rooms = new();
+    private RoomDto _newRoom = new();
+    private RoomDto? _editedRoom;
+
+    private bool _isLoading = true;
+    private string? _loadError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRoomsAsync();
+    }
+
+    private async Task LoadRoomsAsync()
+    {
+        _isLoading = true;
+        _loadError = null;
+
+        try
+        {
+            _rooms = await Api.GetRoomsAsync();
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CreateRoomAsync()
+    {
+        var created = await Api.CreateRoomAsync(_newRoom);
+        _rooms.Add(created);
+        _newRoom = new RoomDto();
+    }
+
+    private void StartEdit(RoomDto room)
+    {
+        _editedRoom = new RoomDto
+        {
+            Id = room.Id,
+            Name = room.Name,
+            Capacity = room.Capacity,
+            IsActive = room.IsActive
+        };
+    }
+
+    private void CancelEdit()
+    {
+        _editedRoom = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (_editedRoom is null)
+            return;
+
+        var updated = await Api.UpdateRoomAsync(_editedRoom.Id, _editedRoom);
+        if (updated is not null)
+        {
+            var index = _rooms.FindIndex(r => r.Id == updated.Id);
+            if (index >= 0)
+            {
+                _rooms[index] = updated;
+            }
+        }
+
+        _editedRoom = null;
+    }
+
+    private async Task DeactivateAsync(int id)
+    {
+        await Api.DeactivateRoomAsync(id);
+        await LoadRoomsAsync();
+    }
+}

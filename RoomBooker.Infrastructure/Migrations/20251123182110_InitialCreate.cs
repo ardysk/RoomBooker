@@ -38,6 +38,9 @@ namespace RoomBooker.Infrastructure.Migrations
                     Email = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     HashedPassword = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     DisplayName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    GoogleAccessToken = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    GoogleRefreshToken = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    GoogleTokenExpiration = table.Column<DateTime>(type: "datetime2", nullable: true),
                     Role = table.Column<string>(type: "nvarchar(max)", nullable: false)
                 },
                 constraints: table =>
@@ -52,9 +55,10 @@ namespace RoomBooker.Infrastructure.Migrations
                     BlockId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     RoomId = table.Column<int>(type: "int", nullable: false),
-                    StartTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EndTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Reason = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    StartTimeUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EndTimeUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Reason = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -74,9 +78,11 @@ namespace RoomBooker.Infrastructure.Migrations
                     LogId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: true),
-                    ActionType = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    ActionTimestamp = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    Details = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    EntityType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    EntityId = table.Column<int>(type: "int", nullable: true),
+                    Action = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Details = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ActionTimestamp = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
@@ -97,12 +103,13 @@ namespace RoomBooker.Infrastructure.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     RoomId = table.Column<int>(type: "int", nullable: false),
                     UserId = table.Column<int>(type: "int", nullable: false),
-                    StartTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    EndTime = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ApprovedBy = table.Column<int>(type: "int", nullable: true),
+                    StartTimeUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EndTimeUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Purpose = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(max)", nullable: false, defaultValue: "Pending"),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    ApprovedBy = table.Column<int>(type: "int", nullable: true),
-                    ApprovedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    RejectionReason = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -138,11 +145,11 @@ namespace RoomBooker.Infrastructure.Migrations
 
             migrationBuilder.InsertData(
                 table: "Users",
-                columns: new[] { "UserId", "DisplayName", "Email", "HashedPassword", "Role" },
+                columns: new[] { "UserId", "DisplayName", "Email", "GoogleAccessToken", "GoogleRefreshToken", "GoogleTokenExpiration", "HashedPassword", "Role" },
                 values: new object[,]
                 {
-                    { 1, "Administrator", "admin@roombooker.local", "admin-hash-placeholder", "Admin" },
-                    { 2, "Użytkownik", "user@roombooker.local", "user-hash-placeholder", "User" }
+                    { 1, "Administrator", "admin@roombooker.local", null, null, null, "$2a$11$1F2DIM0I/66nUgeJF6q6c.sEZFcd6oS7vAS3tmomVmquD.iv18NOm", "Admin" },
+                    { 2, "Użytkownik", "user@roombooker.local", null, null, null, "user-hash-placeholder", "User" }
                 });
 
             migrationBuilder.CreateIndex(

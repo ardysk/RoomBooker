@@ -1,52 +1,87 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
+using RoomBooker.Core.Services;
 using RoomBooker.Infrastructure.Data;
+using RoomBooker.Infrastructure.Services;
+using FluentValidation;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Konfiguracja JWT
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-        };
-    });
+// 1. Database Configuration
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Server=(localdb)\\MSSQLLocalDB;Database=RoomBookerDb;Trusted_Connection=True;MultipleActiveResultSets=true";
 
-// Dodaj us³ugê Swaggera
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddDbContext<RoomBookerDbContext>(options =>
+    options.UseSqlServer(connectionString));
+
+// 2. Register Core Services (Business Logic & Google)
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IRoomService, RoomService>();
+builder.Services.AddScoped<IReservationService, ReservationService>();
+builder.Services.AddScoped<RoomBooker.Infrastructure.Services.GoogleAuthService>();
+
+// 3. Security Setup (JWT Authentication & CORS)
+builder.Services.AddAuthentication(options =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "RoomBooker API", Version = "v1" });
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var key = builder.Configuration["Jwt:Key"] ?? "super-secret-key-12345-change-me-in-production";
+
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "RoomBooker",
+        ValidAudience = builder.Configuration["Jwt:Audience"] ?? "RoomBookerUsers",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key))
+    };
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 });
 
 builder.Services.AddControllers();
-builder.Services.AddDbContext<RoomBookerDbContext>();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+builder.Services.AddScoped<RoomBooker.Infrastructure.Data.DataSeeder>();
+builder.Services.AddValidatorsFromAssemblyContaining<RoomBooker.Core.Validators.ReservationValidator>();
 
+// 4. Build Application
 var app = builder.Build();
 
-// Ustawienie middleware do autentykacji i autoryzacji
-app.UseAuthentication();
-app.UseAuthorization();
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<RoomBooker.Infrastructure.Data.DataSeeder>();
+    await seeder.SeedAsync();
+}
+// --- HTTP PIPELINE ---
 
-// Konfiguracja Swagger UI
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "RoomBooker API v1");
-        c.RoutePrefix = string.Empty; // Swagger bêdzie dostêpny na root URL
-    });
+    app.UseSwaggerUI();
 }
 
+app.UseHttpsRedirection();
+
+app.UseCors("AllowAll");
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
+
 app.Run();

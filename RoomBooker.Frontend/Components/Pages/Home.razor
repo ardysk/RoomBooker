@@ -1,7 +1,128 @@
 ﻿@page "/"
+@using RoomBooker.Core.Dtos
+@inject RoomBooker.Frontend.Services.ApiClient Api
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Grafik Zajęć</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="text-center mb-5">
+    <h1 class="display-4">Grafik Rezerwacji</h1>
+    <p class="lead">Sprawdź dostępność sal. Zaloguj się, aby dokonać rezerwacji.</p>
+</div>
 
-Welcome to your new app.
+@if (_isLoading)
+{
+    <div class="text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Ładowanie...</span>
+        </div>
+        <p>Pobieranie grafiku...</p>
+    </div>
+}
+else
+{
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-6">
+            <select class="form-select form-select-lg" @onchange="OnRoomChanged">
+                @foreach (var room in _rooms)
+                {
+                    <option value="@room.Id">@room.Name (Miejsc: @room.Capacity)</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (_reservations.Any())
+    {
+        <div class="table-responsive">
+            <table class="table table-hover shadow-sm" style="background-color: white; border-radius: 8px;">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Od</th>
+                        <th>Do</th>
+                        <th>Cel rezerwacji</th>
+                        <th>Organizator</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var res in _reservations)
+                    {
+                        <tr>
+                            <td>@res.StartTimeUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>@res.EndTimeUtc.ToLocalTime().ToString("HH:mm")</td>
+                            <td>@res.Purpose</td>
+                            <td>User #@res.UserId</td> 
+                            <td>
+                                @if(res.Status == "Approved")
+                                {
+                                    <span class="badge bg-success">Zatwierdzona</span>
+                                }
+                                else if(res.Status == "Pending")
+                                {
+                                    <span class="badge bg-warning text-dark">Oczekująca</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">@res.Status</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info text-center">
+            Ta sala nie ma aktualnie żadnych rezerwacji. Jest wolna!
+        </div>
+    }
+}
+
+@code {
+    private List<RoomDto> _rooms = new();
+    private List<ReservationDto> _reservations = new();
+    private bool _isLoading = true;
+    private int _selectedRoomId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _rooms = await Api.GetRoomsAsync();
+
+            if (_rooms.Any())
+            {
+                _selectedRoomId = _rooms.First().Id;
+                await LoadReservations(_selectedRoomId);
+            }
+        }
+        catch (Exception)
+        {
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task OnRoomChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int roomId))
+        {
+            _selectedRoomId = roomId;
+            await LoadReservations(roomId);
+        }
+    }
+
+    private async Task LoadReservations(int roomId)
+    {
+        var allReservations = await Api.GetReservationsForRoomAsync(roomId);
+        
+        _reservations = allReservations
+            .Where(r => r.EndTimeUtc > DateTime.UtcNow && r.Status != "Rejected" && r.Status != "Cancelled")
+            .OrderBy(r => r.StartTimeUtc)
+            .ToList();
+    }
+}

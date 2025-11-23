@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using RoomBooker.Core.Dtos;
 using RoomBooker.Core.Entities;
@@ -13,10 +14,11 @@ namespace RoomBooker.Infrastructure.Services
     public class ReservationService : IReservationService
     {
         private readonly RoomBookerDbContext _db;
-
-        public ReservationService(RoomBookerDbContext db)
+        private readonly GoogleAuthService _googleService; 
+        public ReservationService(RoomBookerDbContext db, GoogleAuthService googleService)
         {
             _db = db;
+            _googleService = googleService;
         }
 
         public async Task<IEnumerable<ReservationDto>> GetForRoomAsync(int roomId)
@@ -60,59 +62,96 @@ namespace RoomBooker.Infrastructure.Services
 
         public async Task<ReservationDto> CreateAsync(ReservationDto dto)
         {
-            // 1. Walidacja prostych rzeczy
             if (dto.EndTimeUtc <= dto.StartTimeUtc)
                 throw new InvalidOperationException("Czas zakończenia musi być po czasie rozpoczęcia.");
 
-            // 2. Sprawdzenie kolizji z innymi rezerwacjami
-            bool overlaps = await _db.Reservations.AnyAsync(r =>
-                r.RoomId == dto.RoomId &&
-                r.Status != "Cancelled" &&
-                r.Status != "Rejected" &&
-                r.StartTimeUtc < dto.EndTimeUtc &&
-                dto.StartTimeUtc < r.EndTimeUtc);
+            using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
 
-            if (overlaps)
-                throw new InvalidOperationException("W tym przedziale czasowym sala jest już zarezerwowana.");
-
-            // 3. Sprawdzenie kolizji z maintenance
-            bool inMaintenance = await _db.MaintenanceWindows.AnyAsync(m =>
-                m.RoomId == dto.RoomId &&
-                m.IsActive &&
-                m.StartTimeUtc < dto.EndTimeUtc &&
-                dto.StartTimeUtc < m.EndTimeUtc);
-
-            if (inMaintenance)
-                throw new InvalidOperationException("W tym czasie jest zaplanowana przerwa techniczna.");
-
-            var reservation = new Reservation
+            try
             {
-                RoomId = dto.RoomId,
-                UserId = dto.UserId,
-                StartTimeUtc = dto.StartTimeUtc,
-                EndTimeUtc = dto.EndTimeUtc,
-                Purpose = dto.Purpose,
-                Status = "Pending",
-                CreatedAt = DateTime.UtcNow
-            };
+                bool overlaps = await _db.Reservations.AnyAsync(r =>
+                    r.RoomId == dto.RoomId &&
+                    r.Status != "Cancelled" &&
+                    r.Status != "Rejected" &&
+                    r.StartTimeUtc < dto.EndTimeUtc &&
+                    dto.StartTimeUtc < r.EndTimeUtc);
 
-            _db.Reservations.Add(reservation);
+                if (overlaps)
+                    throw new InvalidOperationException("W tym przedziale czasowym sala jest już zarezerwowana.");
 
-            // Log
-            _db.AuditLogs.Add(new AuditLog
+                bool inMaintenance = await _db.MaintenanceWindows.AnyAsync(m =>
+                    m.RoomId == dto.RoomId &&
+                    m.IsActive &&
+                    m.StartTimeUtc < dto.EndTimeUtc &&
+                    dto.StartTimeUtc < m.EndTimeUtc);
+
+                if (inMaintenance)
+                    throw new InvalidOperationException("W tym czasie jest zaplanowana przerwa techniczna.");
+
+                var reservation = new Reservation
+                {
+                    RoomId = dto.RoomId,
+                    UserId = dto.UserId,
+                    StartTimeUtc = dto.StartTimeUtc,
+                    EndTimeUtc = dto.EndTimeUtc,
+                    Purpose = dto.Purpose,
+                    Status = "Pending",
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _db.Reservations.Add(reservation);
+                await _db.SaveChangesAsync();
+
+                _db.AuditLogs.Add(new AuditLog
+                {
+                    UserId = dto.UserId,
+                    EntityType = "Reservation",
+                    EntityId = reservation.ReservationId,
+                    Action = "Create",
+                    Details = $"Nowa rezerwacja pokoju {dto.RoomId}"
+                });
+
+                await _db.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                try
+                {
+                    var user = await _db.Users.AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.UserId == dto.UserId);
+
+                    var room = await _db.Rooms.FindAsync(dto.RoomId);
+                    if (room != null) reservation.Room = room;
+
+                    if (user != null && !string.IsNullOrEmpty(user.GoogleAccessToken))
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await _googleService.AddReservationToCalendarAsync(user, reservation);
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[Google Error - Token wygasł lub inny błąd]: {ex.Message}");
+                            }
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Logic Error]: {ex.Message}");
+                }
+
+                dto.ReservationId = reservation.ReservationId;
+                dto.Status = reservation.Status;
+                return dto;
+            }
+            catch
             {
-                UserId = dto.UserId,
-                EntityType = "Reservation",
-                EntityId = reservation.ReservationId, // będzie ustawione po SaveChanges
-                Action = "Create",
-                Details = $"Nowa rezerwacja pokoju {dto.RoomId} {dto.StartTimeUtc:u}–{dto.EndTimeUtc:u}"
-            });
-
-            await _db.SaveChangesAsync();
-
-            dto.ReservationId = reservation.ReservationId;
-            dto.Status = reservation.Status;
-            return dto;
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
 
         public async Task<bool> ApproveAsync(int id, int adminUserId)
@@ -188,4 +227,3 @@ namespace RoomBooker.Infrastructure.Services
         }
     }
 }
-

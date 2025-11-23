@@ -6,6 +6,12 @@ namespace RoomBooker.Core.Dtos
     {
         public int ReservationId { get; set; }
 
+        public int Id
+        {
+            get => ReservationId;
+            set => ReservationId = value;
+        }
+
         [Required(ErrorMessage = "ID pokoju jest wymagane.")]
         public int RoomId { get; set; }
 
@@ -24,8 +30,11 @@ namespace RoomBooker.Core.Dtos
         [StringLength(1000, ErrorMessage = "Cel rezerwacji nie może mieć więcej niż 1000 znaków.")]
         public string Purpose { get; set; } = default!;
 
-        public string Status { get; set; } = "Pending"; // Default value for status
+        public string Status { get; set; } = "Pending";
 
         public string? RejectionReason { get; set; }
+
+        public string? RoomName { get; set; }
+
     }
 }
