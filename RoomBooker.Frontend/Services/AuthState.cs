@@ -10,6 +10,7 @@ namespace RoomBooker.Frontend.Services
         private readonly ApiClient _apiClient;
         private readonly ProtectedLocalStorage _storage;
 
+        private string? _userEmail; // Tutaj trzymamy prawdziwy email
         private bool _successfullyLoaded = false;
 
         public AuthState(ApiClient apiClient, ProtectedLocalStorage storage)
@@ -26,20 +27,31 @@ namespace RoomBooker.Frontend.Services
             {
                 var tokenResult = await _storage.GetAsync<string>("authToken");
 
+                // Próbujemy odzyskać też email z dysku
+                var emailResult = await _storage.GetAsync<string>("userEmail");
+
                 if (!tokenResult.Success || string.IsNullOrEmpty(tokenResult.Value))
                 {
                     return emptyState;
                 }
 
                 var token = tokenResult.Value;
-
                 _apiClient.SetToken(token);
 
+                // Ustawiamy email w pamięci
+                if (emailResult.Success) _userEmail = emailResult.Value;
+
                 var claims = ParseClaimsFromJwt(token);
-
                 var identity = new ClaimsIdentity(claims, "jwt");
-                var user = new ClaimsPrincipal(identity);
 
+                // Jeśli email nie został pobrany z storage, spróbujmy z tokena
+                if (string.IsNullOrEmpty(_userEmail))
+                {
+                    _userEmail = claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value
+                                 ?? claims.FirstOrDefault(c => c.Type == "email")?.Value;
+                }
+
+                var user = new ClaimsPrincipal(identity);
                 return new AuthenticationState(user);
             }
             catch
@@ -53,6 +65,8 @@ namespace RoomBooker.Frontend.Services
             var ok = await _apiClient.LoginAsync(email, password);
             if (ok)
             {
+                _userEmail = email; // Zapamiętujemy email
+
                 if (!string.IsNullOrEmpty(_apiClient.JwtToken))
                 {
                     await _storage.SetAsync("authToken", _apiClient.JwtToken);
@@ -66,6 +80,7 @@ namespace RoomBooker.Frontend.Services
         public async Task LogoutAsync()
         {
             await _apiClient.LogoutAsync();
+            _userEmail = null;
             await _storage.DeleteAsync("authToken");
             await _storage.DeleteAsync("userEmail");
             NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
@@ -83,28 +98,20 @@ namespace RoomBooker.Frontend.Services
             foreach (var kvp in keyValuePairs)
             {
                 var claimType = kvp.Key;
-                if (claimType == "role" || claimType == "Role")
-                {
-                    claimType = ClaimTypes.Role;
-                }
-                else if (claimType == "unique_name")
-                {
-                    claimType = ClaimTypes.Name;
-                }
+                if (claimType == "role" || claimType == "Role") claimType = ClaimTypes.Role;
+                else if (claimType == "unique_name") claimType = ClaimTypes.Name;
+                else if (claimType == "email") claimType = ClaimTypes.Email;
 
                 if (kvp.Value is JsonElement element && element.ValueKind == JsonValueKind.Array)
                 {
                     foreach (var item in element.EnumerateArray())
-                    {
                         claims.Add(new Claim(claimType, item.ToString()));
-                    }
                 }
                 else
                 {
                     claims.Add(new Claim(claimType, kvp.Value.ToString()!));
                 }
             }
-
             return claims;
         }
 
@@ -117,8 +124,8 @@ namespace RoomBooker.Frontend.Services
             }
             return Convert.FromBase64String(base64);
         }
+        public string? UserEmail => _userEmail;
 
-        public string? UserEmail => _apiClient.IsAuthenticated ? "Zalogowany" : null;
         public bool IsAuthenticated => _apiClient.IsAuthenticated;
     }
 }

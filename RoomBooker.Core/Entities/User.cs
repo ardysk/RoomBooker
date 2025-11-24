@@ -17,10 +17,9 @@ namespace RoomBooker.Core.Entities
         public string? GoogleRefreshToken { get; set; }
         public DateTime? GoogleTokenExpiration { get; set; }
 
-        // "User" albo "Admin"
+        // "User"/"Admin"
         public string Role { get; set; } = "User";
 
-        // Nawigacja
         public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
         public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
     }

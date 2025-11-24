@@ -23,7 +23,9 @@ namespace RoomBooker.Infrastructure.Services
 
         public async Task<IEnumerable<RoomDto>> GetAllAsync(bool includeInactive = false)
         {
-            var query = _db.Rooms.AsQueryable();
+            var query = _db.Rooms
+                .Include(r => r.Equipments) // <--- WAŻNE: Pobierz sprzęt z bazy!
+                .AsQueryable();
 
             if (!includeInactive)
                 query = query.Where(r => r.IsActive);
@@ -35,7 +37,13 @@ namespace RoomBooker.Infrastructure.Services
                     Name = r.Name,
                     Capacity = r.Capacity,
                     EquipmentDescription = r.EquipmentDescription,
-                    IsActive = r.IsActive
+                    IsActive = r.IsActive,
+                    Equipments = r.Equipments.Select(e => new EquipmentDto
+                    {
+                        EquipmentId = e.EquipmentId,
+                        Name = e.Name,
+                        RoomId = e.RoomId
+                    }).ToList()
                 })
                 .ToListAsync();
         }
@@ -62,13 +70,14 @@ namespace RoomBooker.Infrastructure.Services
                 Name = dto.Name,
                 Capacity = dto.Capacity,
                 EquipmentDescription = dto.EquipmentDescription,
-                IsActive = dto.IsActive
+                IsActive = true // Upewnij się, że nowa sala jest aktywna!
             };
 
             _db.Rooms.Add(room);
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(); // <--- TO ZAPISUJE DO BAZY
 
-            dto.RoomId = room.RoomId;
+            dto.RoomId = room.RoomId; // Przypisz ID z bazy
+            dto.Id = room.RoomId;     // I do aliasu też
             return dto;
         }
 

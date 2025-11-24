@@ -31,5 +31,7 @@ namespace RoomBooker.Core.Dtos
         public bool IsActive { get; set; }
 
         public string? Location { get; set; }
+
+        public List<EquipmentDto> Equipments { get; set; } = new();
     }
 }

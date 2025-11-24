@@ -185,16 +185,56 @@ public class ApiClient
         return await _http.GetStreamAsync($"/api/Rooms/stats/csv?month={month}&year={year}");
     }
     // --- Users (Admin) ---
+
     public async Task<List<UserDto>> GetUsersAsync()
     {
         await SetAuthHeader();
         return await _http.GetFromJsonAsync<List<UserDto>>("/api/Users") ?? new();
     }
 
+    public async Task UpdateUserAsync(int id, UserUpdateDto dto)
+    {
+        await SetAuthHeader();
+        var response = await _http.PutAsJsonAsync($"/api/Users/{id}", dto);
+        response.EnsureSuccessStatusCode();
+    }
+
     public async Task DeleteUserAsync(int id)
     {
         await SetAuthHeader();
         var response = await _http.DeleteAsync($"/api/Users/{id}");
+        response.EnsureSuccessStatusCode();
+    }
+    public async Task<List<ReservationDto>> GetReservationsForEquipmentAsync(int equipmentId)
+    {
+        await SetAuthHeader();
+        return await _http.GetFromJsonAsync<List<ReservationDto>>($"/api/Reservations/equipment/{equipmentId}") ?? new();
+    }
+    // --- Equipment ---
+    public async Task<List<EquipmentDto>> GetEquipmentAsync()
+    {
+        await SetAuthHeader();
+        return await _http.GetFromJsonAsync<List<EquipmentDto>>("/api/Equipment") ?? new();
+    }
+
+    public async Task CreateEquipmentAsync(EquipmentDto dto)
+    {
+        await SetAuthHeader();
+        var response = await _http.PostAsJsonAsync("/api/Equipment", dto);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task UpdateEquipmentAsync(int id, EquipmentDto dto)
+    {
+        await SetAuthHeader();
+        var response = await _http.PutAsJsonAsync($"/api/Equipment/{id}", dto);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task DeleteEquipmentAsync(int id)
+    {
+        await SetAuthHeader();
+        var response = await _http.DeleteAsync($"/api/Equipment/{id}");
         response.EnsureSuccessStatusCode();
     }
 }

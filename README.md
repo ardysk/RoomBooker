@@ -1,86 +1,94 @@
-﻿# RoomBooker - Enterprise Room Reservation System
+﻿# RoomBooker - Enterprise Room & Equipment Reservation System
 
-**RoomBooker** is a robust, enterprise-level web application designed to streamline the management of corporate or academic resources. The system eliminates the critical issue of "double bookings," ensures transparency in resource availability, and automates scheduling workflows through seamless integration with Google Calendar.
+![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)
+![Blazor](https://img.shields.io/badge/Blazor-Server-512BD4?logo=blazor)
+![SQL Server](https://img.shields.io/badge/SQL_Server-2019-CC2927?logo=microsoft-sql-server)
+![Status](https://img.shields.io/badge/Status-Completed-brightgreen)
+
+**RoomBooker** is a comprehensive web application developed in .NET 8, designed to streamline resource management in corporate or academic environments. It solves the critical problem of "double bookings," ensures transparency in resource availability, and automates scheduling workflows through seamless integration with **Google Calendar**.
+
+The system supports full lifecycle management for both **Conference Rooms** and **Portable Equipment**.
 
 ---
 
-## 1. Project Overview & Objectives
+## 1. Project Objectives & Scope
 
-The primary goal of this project was to engineer a complete .NET-based web application that demonstrates advanced proficiency in software architecture, database design, and full-stack development.
+The primary goal was to engineer a complete full-stack application demonstrating advanced software architecture patterns, complex database logic, and secure integration with external APIs.
 
-### User Roles
-The application supports two distinct role-based access levels:
-* **Administrators:** Have full control over the system. They manage resources (Rooms), users, oversee the reservation approval workflow (Approve/Reject), and analyze occupancy reports.
-* **Users:** Can browse the interactive schedule, request room reservations, manage their own bookings, and synchronize them with their private Google Calendar.
+### User Roles (RBAC)
+* **Administrators:** Have full control over the system. They manage resources (Rooms, Equipment), users, oversee the approval workflow, and analyze occupancy reports using SQL-powered analytics.
+* **Users:** Can browse the interactive schedule, book rooms, rent equipment independently, and synchronize bookings with their private Google Calendar.
 
 ---
 
 ## 2. Technology Stack & Architecture
 
-The solution implements **Clean Architecture** principles to ensure separation of concerns, scalability, and testability.
+The solution follows **Clean Architecture** principles to ensure scalability and testability.
 
 ### Backend
 * **Framework:** .NET 8 (ASP.NET Core Web API)
-* **ORM:** Entity Framework Core 8 (Code First approach)
+* **ORM:** Entity Framework Core 8 (Code First)
 * **Database:** Microsoft SQL Server
 * **Authentication:** JWT (JSON Web Tokens) + OAuth 2.0 (Google Integration)
-* **Validation:** FluentValidation & DataAnnotations + Custom Business Logic
+* **Validation:** FluentValidation & DataAnnotations
 * **Testing:** xUnit + FluentAssertions
 
 ### Frontend
 * **Framework:** Blazor Server (.NET 8)
 * **UI Library:** Bootstrap 5 (Responsive Design)
-* **State Management:** Custom `AuthenticationStateProvider` with persistence via `ProtectedLocalStorage`
+* **State Management:** Custom `AuthenticationStateProvider` with `ProtectedLocalStorage` persistence.
 
 ### Project Structure
-1.  **`RoomBooker.Core`**: The domain heart. Contains Entities, Interfaces (Repository/Service Pattern), and DTOs. No external dependencies.
-2.  **`RoomBooker.Infrastructure`**: Technical implementation. Includes EF Core DbContext, concrete Services (`ReservationService`, `GoogleAuthService`), Migrations, and Raw SQL handlers.
-3.  **`RoomBooker.Api`**: Presentation layer exposing data. REST API Controllers secured with `[Authorize]` attributes.
-4.  **`RoomBooker.Frontend`**: The UI layer. Razor Components, Event Handling, and HTTP Client communication.
+1.  **`RoomBooker.Core`**: Domain Entities, Interfaces, DTOs.
+2.  **`RoomBooker.Infrastructure`**: EF Core, SQL Implementations, Services (`ReservationService`, `GoogleAuthService`).
+3.  **`RoomBooker.Api`**: REST API Controllers secured with `[Authorize]` attributes.
+4.  **`RoomBooker.Frontend`**: Razor Components, Client-side logic.
 
 ---
 
-## 3. Key Features & Compliance
+## 3. Key Features
 
-This project meets and exceeds all academic requirements:
+### ✅ Advanced Reservation Logic
+* **Conflict Detection:** Mathematical algorithm checks for time overlaps in real-time for both Rooms and individual Equipment items.
+* **Equipment Rental:** Users can book a room *with* equipment OR rent equipment independently (without a room).
+* **Maintenance Windows:** Ability to block resources for maintenance.
 
-### 💻 Backend & Business Logic
-* **N-Tier Architecture:** Strict separation of API, Logic, and Data Access layers.
-* **Comprehensive CRUD:** Full management for Rooms, Users, and Reservations.
-* **Advanced Conflict Detection:** A mathematical algorithm checks for time overlaps in real-time, preventing double bookings.
-* **Global Error Handling:** Centralized exception handling returning appropriate HTTP status codes (400, 401, 404, 500).
+### ✅ Google Calendar Sync (Killer Feature) 📅
+* **OAuth 2.0:** Secure connection with user's Google Account.
+* **Background Sync:** Approved reservations are pushed to the user's Google Calendar asynchronously using `Task.Run` to maintain UI responsiveness.
+* **Resilience:** The system handles token expiration and API failures gracefully without crashing the main reservation flow.
 
-### 🗄️ Advanced Database Implementation (SQL Server)
-The system leverages native SQL capabilities beyond standard ORM:
-* **Trigger (`trg_Reservations_Audit`):** Automatically logs every `INSERT` or `UPDATE` on the `Reservations` table into the immutable `AuditLogs` table, tracking who changed what and when.
-* **Stored Procedure (`sp_GetMonthlyRoomStats`):** Performs server-side data aggregation to generate performance reports (e.g., room occupancy per month).
-* **User-Defined Function (`fn_GetReservationDurationHours`):** A scalar function used within reports to calculate meeting durations accurately.
+### ✅ Data Analytics & SQL 📊
+* **SQL Powered Reports:** Utilization of Stored Procedures to generate monthly statistics.
+* **CSV Export:** One-click export of reports for external analysis.
+* **Audit Log:** Every action (Create, Approve, Reject, Cancel) is logged via Database Triggers.
 
-### 🖥️ Modern Frontend (Blazor)
-* **Responsive UI:** Fully functional on desktop and mobile devices.
-* **Dynamic Role-Based UI:** Menus and buttons adapt dynamically based on the user's role (e.g., "Manage Rooms" is invisible to standard users).
-* **Google Calendar Sync (Killer Feature):** Users can link their Google Account via OAuth2. Approved reservations are pushed to their primary calendar asynchronously in the background (using `Task.Run` to maintain UI responsiveness).
+### ✅ Administration Panel
+* **User Management:** Admins can manage accounts, reset passwords, and change roles.
+* **Inventory Management:** Full CRUD for Rooms and Equipment.
 
 ---
 
 ## 4. Database Schema (ERD)
 
-The application relies on a relational SQL Server database with the following structure:
+The application relies on a relational SQL Server database. Notably, it handles a Many-to-Many relationship between Reservations and Equipment.
 
 ```mermaid
 erDiagram
-    User ||--o{ Reservation : creates
-    User ||--o{ AuditLog : triggers
-    User ||--o{ Review : writes
-    Room ||--o{ Reservation : hosts
-    Room ||--o{ MaintenanceWindow : has
-    Room ||--o{ Review : receives
+    User ||--o{ Reservation : "creates"
+    User ||--o{ AuditLog : "triggers"
+    User ||--o{ Review : "writes"
+    Room ||--o{ Reservation : "hosts"
+    Room ||--o{ Equipment : "contains"
+    Room ||--o{ MaintenanceWindow : "has"
+    
+    Reservation }|--|{ Equipment : "includes"
     
     User {
         int UserId PK
-        string Email
+        string Email "Unique Index"
         string HashedPassword
-        string Role
+        string Role "Admin/User"
         string GoogleAccessToken
         string GoogleRefreshToken
     }
@@ -92,10 +100,16 @@ erDiagram
         bool IsActive
     }
 
+    Equipment {
+        int EquipmentId PK
+        int RoomId FK
+        string Name
+    }
+
     Reservation {
         int ReservationId PK
         int UserId FK
-        int RoomId FK
+        int RoomId FK "Nullable (Equipment only)"
         datetime StartTimeUtc
         datetime EndTimeUtc
         string Status
@@ -109,28 +123,23 @@ erDiagram
         datetime ActionTimestamp
     }
 
-    MaintenanceWindow {
-        int BlockId PK
-        int RoomId FK
-        datetime StartTime
-        datetime EndTime
-    }
-
     Review {
         int ReviewId PK
         int RoomId FK
-        int UserId FK
         int Rating
         string Comment
     }
 ```
 
+---
+
 ## 5. SQL Programmability Details
 
-The project meets advanced database requirements by implementing raw SQL logic directly on the server side.
+The project meets advanced database requirements by implementing logic directly on the SQL Server.
 
 ### 1. Audit Trigger
-Ensures data integrity and accountability by automatically logging all changes made to the `Reservations` table.
+
+Automatically logs changes in the `Reservations` table to `AuditLogs`.
 
 ```sql
 CREATE OR ALTER TRIGGER trg_Reservations_Audit
@@ -152,92 +161,89 @@ BEGIN
 END
 ```
 
-### 2. Helper Function
-A scalar function used to calculate the duration of a reservation in hours. This logic is reused in reporting procedures.
+### 2. Reporting Stored Procedure & Function
+
+Generates aggregated statistics (Total reservations & hours) for the admin dashboard using a helper scalar function.
 
 ```sql
+-- Function: Calculate duration in hours
 CREATE OR ALTER FUNCTION dbo.fn_GetReservationDurationHours (@Start DateTime, @End DateTime)
-RETURNS INT
-AS
-BEGIN
-    RETURN DATEDIFF(HOUR, @Start, @End);
+RETURNS INT AS 
+BEGIN 
+    RETURN DATEDIFF(HOUR, @Start, @End); 
 END;
-```
+GO
 
-### 3. Reporting Stored Procedure
-Generates aggregated statistics for the admin dashboard, calculating total reservations and hours per room for a specific month.
-
-```sql
-CREATE OR ALTER PROCEDURE dbo.sp_GetMonthlyRoomStats
-    @Month INT,
-    @Year INT
-AS
+-- Procedure: Monthly Room Statistics
+CREATE OR ALTER PROCEDURE dbo.sp_GetMonthlyRoomStats @Month INT, @Year INT
+AS 
 BEGIN
     SELECT 
-        r.Name AS RoomName,
-        COUNT(res.ReservationId) AS ReservationCount,
+        r.Name AS RoomName, 
+        COUNT(res.ReservationId) AS ReservationCount, 
         SUM(dbo.fn_GetReservationDurationHours(res.StartTimeUtc, res.EndTimeUtc)) AS TotalHours
-    FROM Rooms r
+    FROM Rooms r 
     LEFT JOIN Reservations res ON r.RoomId = res.RoomId
     WHERE MONTH(res.StartTimeUtc) = @Month AND YEAR(res.StartTimeUtc) = @Year
     GROUP BY r.Name;
 END;
 ```
 
-## 6. Setup & Installation Guide
+---
 
-Follow these steps to run the project locally.
+## 6. 📸 Application Gallery
 
-### Prerequisites
-* .NET 8 SDK
-* SQL Server (LocalDB or Full Instance)
-* Visual Studio 2022
+Below are the screenshots demonstrating the key functionalities of the application.
 
-### Step 1: Database Configuration
-1.  Open `RoomBooker.Api/appsettings.json`.
-2.  Verify that `ConnectionStrings:DefaultConnection` points to your local SQL instance.
-3.  Open a terminal in the `RoomBooker.Infrastructure` directory and run the following command to create the database and seed initial data:
-    ```powershell
-    dotnet ef database update
-    ```
-    *Note: The system will automatically seed an Administrator account: `admin@roombooker.local` / `admin123`.*
+### 🔐 Authentication & Profile
+**Login & Google Connection Status**
+![Login Screen](docs/images/login.png)
 
-### Step 2: Google API Configuration (Optional)
-To fully enable the Google Calendar Sync feature:
-1.  Create a new project in the **Google Cloud Console**.
-2.  Enable the **Google Calendar API**.
-3.  Generate **OAuth 2.0 Client ID** and **Client Secret**.
-4.  Add them to the `Google` section in `RoomBooker.Api/appsettings.json`:
-    ```json
-    "Google": {
-      "ClientId": "YOUR_CLIENT_ID",
-      "ClientSecret": "YOUR_CLIENT_SECRET"
-    }
-    ```
+### 📅 Reservations Module
+**List View** - *Users can filter reservations and manage their bookings.*
+![Reservations List](docs/images/list_view.png)
 
-### Step 3: Running the Application
-In Visual Studio, configure the solution to start multiple projects:
-1.  Right-click the Solution -> **Properties**.
-2.  Select **Multiple Startup Projects**.
-3.  Set `RoomBooker.Api` to **Start**.
-4.  Set `RoomBooker.Frontend` to **Start**.
+**Room Booking Form** - *Form for booking rooms with additional equipment selection.*
+![Booking Form](docs/images/booking_form.png)
 
-Alternatively, run via terminal:
-```bash
-# Terminal 1 (Backend)
-cd RoomBooker.Api
-dotnet run
+**Equipment Rental Mode** - *Dedicated mode for booking specific items (e.g., projectors) without reserving a room.*
+![Equipment Mode](docs/images/equipment_mode.png)
 
-# Terminal 2 (Frontend)
-cd RoomBooker.Frontend
-dotnet run
-```
+### 🛡️ Administration Panel
+**Room Management (CRUD)**
+![Room Management](docs/images/room_manage.png)
+
+**Inventory / Equipment Management**
+![Inventory](docs/images/inventory.png)
+
+**User Management** - *Admin can manage roles and reset passwords.*
+![User Management](docs/images/user_manage.png)
 
 ---
 
-## 7. Author
+## 7. Setup & Installation
+
+### Prerequisites
+* .NET 8 SDK
+* SQL Server (LocalDB or Full)
+* Visual Studio 2022
+
+### Installation Steps
+
+1.  **Database:** Update connection string in `appsettings.json` and run migrations:
+    ```powershell
+    cd RoomBooker.Infrastructure
+    dotnet ef database update
+    ```
+2.  **Google Auth (Optional):** Add Client ID/Secret to `appsettings.json` in the API project.
+3.  **Run:** Start both `RoomBooker.Api` and `RoomBooker.Frontend` projects via Visual Studio (Multiple Startup Projects).
+4.  **Access:** Open browser at `https://localhost:7026`.
+
+---
+
+## 8. Author
 
 **Name:** Arkadiusz Kowalczyk
 **Student ID:** 168681
 **Course:** DBwAI
-**Date:** November 2025
+**Date:** December 2025

@@ -22,11 +22,6 @@ namespace RoomBooker.Tests.Services
             return new RoomBookerDbContext(options);
         }
 
-        private GoogleAuthService CreateFakeGoogleService()
-        {
-            return new GoogleAuthService(null!);
-        }
-
         [Fact]
         public async Task CreateAsync_ValidData_CreatesReservationAndAuditLog()
         {
@@ -51,9 +46,11 @@ namespace RoomBooker.Tests.Services
             db.Rooms.Add(room);
             await db.SaveChangesAsync();
 
-            var service = new ReservationService(db, CreateFakeGoogleService());
+            // Przekazujemy null! jako serwis Google, bo to tylko testy
+            var service = new ReservationService(db, null!);
 
-            var dto = new ReservationDto
+            // ZMIANA: Używamy ReservationCreateDto
+            var dto = new ReservationCreateDto
             {
                 RoomId = room.RoomId,
                 UserId = user.UserId,
@@ -97,9 +94,10 @@ namespace RoomBooker.Tests.Services
             });
             await db.SaveChangesAsync();
 
-            var service = new ReservationService(db, CreateFakeGoogleService());
+            var service = new ReservationService(db, null!);
 
-            var dto = new ReservationDto
+            // ZMIANA: ReservationCreateDto
+            var dto = new ReservationCreateDto
             {
                 RoomId = 1,
                 UserId = 2,
@@ -134,7 +132,7 @@ namespace RoomBooker.Tests.Services
             db.Reservations.Add(reservation);
             await db.SaveChangesAsync();
 
-            var service = new ReservationService(db, CreateFakeGoogleService());
+            var service = new ReservationService(db, null!);
 
             var result = await service.CancelAsync(reservation.ReservationId, reservation.UserId);
 

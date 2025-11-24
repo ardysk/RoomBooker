@@ -15,11 +15,10 @@ namespace RoomBooker.Core.Entities
 
         public string? EquipmentDescription { get; set; }
 
-        // Czy sala jest aktywna (można rezerwować)
         public bool IsActive { get; set; } = true;
 
-        // Nawigacja
         public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
         public ICollection<MaintenanceWindow> MaintenanceWindows { get; set; } = new List<MaintenanceWindow>();
+        public ICollection<Equipment> Equipments { get; set; } = new List<Equipment>();
     }
 }

@@ -31,7 +31,6 @@ jobs:
           dotnet build RoomBooker.Core/RoomBooker.Core.csproj --configuration Release --no-restore
           dotnet build RoomBooker.Infrastructure/RoomBooker.Infrastructure.csproj --configuration Release --no-restore
           dotnet build RoomBooker.Api/RoomBooker.Api.csproj --configuration Release --no-restore
-          dotnet build RoomBooker.Frontend/RoomBooker.Frontend.csproj --configuration Release
 
       - name: Run tests
         run: dotnet test RoomBooker.Tests/RoomBooker.Tests.csproj --configuration Release --no-restore

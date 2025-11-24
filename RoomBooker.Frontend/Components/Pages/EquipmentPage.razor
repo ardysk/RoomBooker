@@ -1,0 +1,157 @@
+﻿@page "/equipment"
+@using Microsoft.AspNetCore.Authorization
+@using RoomBooker.Core.Dtos
+@attribute [Authorize(Roles = "Admin")]
+@inject RoomBooker.Frontend.Services.ApiClient Api
+@inject IJSRuntime JS
+
+<h3>📦 Zarządzanie Wyposażeniem</h3>
+
+@if (_isLoading)
+{
+    <div class="spinner-border text-primary" role="status"></div>
+}
+else
+{
+    <div class="row mb-4">
+        <div class="col-md-5">
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    @(_isEditing ? "Edytuj sprzęt" : "Dodaj nowy sprzęt")
+                </div>
+                <div class="card-body">
+                    <EditForm Model="_model" OnValidSubmit="HandleSubmit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label class="form-label">Nazwa przedmiotu</label>
+                            <InputText class="form-control" @bind-Value="_model.Name" placeholder="np. Rzutnik Sony" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Przypisz do sali</label>
+                            <InputSelect class="form-select" @bind-Value="_model.RoomId">
+                                <option value="0">-- Wybierz salę --</option>
+                                @foreach (var room in _rooms)
+                                {
+                                    <option value="@room.Id">@room.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">@(_isEditing ? "Zapisz zmiany" : "Dodaj")</button>
+                            @if (_isEditing)
+                            {
+                                <button type="button" class="btn btn-outline-secondary" @onclick="CancelEdit">Anuluj</button>
+                            }
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header">Lista sprzętu</div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Nazwa</th>
+                                <th>Lokalizacja (Sala)</th>
+                                <th class="text-end">Akcje</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in _equipmentList)
+                            {
+                                <tr>
+                                    <td>@item.Name</td>
+                                    <td>
+                                        <span class="badge bg-info text-dark">@item.RoomName</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-primary me-1" @onclick="() => StartEdit(item)">🖊</button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteItem(item)">🗑</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<EquipmentDto> _equipmentList = new();
+    private List<RoomDto> _rooms = new();
+    private EquipmentDto _model = new();
+    private bool _isLoading = true;
+    private bool _isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _isLoading = true;
+        try
+        {
+            _rooms = await Api.GetRoomsAsync();
+            _equipmentList = await Api.GetEquipmentAsync();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_isEditing)
+        {
+            await Api.UpdateEquipmentAsync(_model.EquipmentId, _model);
+        }
+        else
+        {
+            await Api.CreateEquipmentAsync(_model);
+        }
+
+        _model = new EquipmentDto();
+        _isEditing = false;
+        await LoadData();
+    }
+
+    private void StartEdit(EquipmentDto item)
+    {
+        _model = new EquipmentDto
+            {
+                EquipmentId = item.EquipmentId,
+                Name = item.Name,
+                RoomId = item.RoomId
+            };
+        _isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        _model = new EquipmentDto();
+        _isEditing = false;
+    }
+
+    private async Task DeleteItem(EquipmentDto item)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Usunąć {item.Name}?");
+        if (confirmed)
+        {
+            await Api.DeleteEquipmentAsync(item.EquipmentId);
+            await LoadData();
+        }
+    }
+}

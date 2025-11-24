@@ -1,148 +1,301 @@
 ﻿@page "/reservations"
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
-@attribute [Authorize] 
+@using System.Globalization
+@attribute [Authorize]
 @using RoomBooker.Core.Dtos
 @inject RoomBooker.Frontend.Services.ApiClient Api
 @inject NavigationManager Nav
 @inject RoomBooker.Frontend.Services.AuthState Auth
 
-<h3>Rezerwacje</h3>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3>Rezerwacje</h3>
+
+    <div class="btn-group shadow-sm">
+        <button class="btn @(_activeTab == "room" ? "btn-primary" : "btn-outline-primary")"
+                @onclick="@(() => SwitchTab("room"))">
+            🏢 Rezerwacja Sali
+        </button>
+        <button class="btn @(_activeTab == "equipment" ? "btn-primary" : "btn-outline-primary")"
+                @onclick="@(() => SwitchTab("equipment"))">
+            📺 Wypożyczalnia Sprzętu
+        </button>
+        <button class="btn @(_activeTab == "calendar" ? "btn-primary" : "btn-outline-primary")"
+                @onclick="@(() => SwitchTab("calendar"))">
+            📅 Kalendarz Dostępności
+        </button>
+    </div>
+</div>
 
 @if (_isLoading)
 {
-    <p>Wczytywanie rezerwacji...</p>
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
 }
 else if (_loadError is not null)
 {
-    <div class="alert alert-danger">@_loadError</div>
+    <div class="alert alert-danger shadow-sm">@_loadError</div>
 }
 else
 {
-        @if (_isGoogleConnected)
-        {
-            <div class="alert alert-success py-2">
-                ✅ Połączono z Google Calendar
+    // --- ZAKŁADKA 1 i 2: FORMULARZE REZERWACJI ---
+    @if (_activeTab == "room" || _activeTab == "equipment")
+    {
+        <div class="row">
+            <div class="col-md-5 order-md-2 mb-4">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header bg-light fw-bold">Twoje ostatnie rezerwacje</div>
+                    <div class="card-body p-0 overflow-auto" style="max-height: 600px;">
+                        <table class="table table-hover mb-0" style="font-size: 0.9rem;">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th>Zasób</th>
+                                    <th>Kiedy</th>
+                                    <th>Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in FilteredReservations)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@r.RoomName</strong>
+                                            <div class="text-muted small text-truncate" style="max-width: 150px;">@r.Purpose</div>
+                                        </td>
+                                        <td>
+                                            @r.StartTimeUtc.ToLocalTime().ToString("dd.MM HH:mm") <br/>
+                                            <span class="text-muted">do @r.EndTimeUtc.ToLocalTime().ToString("HH:mm")</span>
+                                        </td>
+                                        <td><span class="badge @GetStatusColor(r.Status)">@r.Status</span></td>
+                                        <td class="text-end">
+                                            @if (r.Status != "Cancelled" && r.Status != "Rejected")
+                                            {
+                                                <button class="btn btn-sm btn-outline-danger py-0" @onclick="() => CancelAsync(r.Id)" title="Anuluj">×</button>
+                                            }
+                                            
+                                            <AuthorizeView Roles="Admin">
+                                                <Authorized>
+                                                    @if (r.Status == "Pending")
+                                                    {
+                                                        <div class="mt-1">
+                                                            <button class="btn btn-sm btn-success py-0 me-1" @onclick="() => ApproveAsync(r.Id)">✔</button>
+                                                            <button class="btn btn-sm btn-warning py-0" @onclick="() => RejectAsync(r.Id)">✖</button>
+                                                        </div>
+                                                    }
+                                                </Authorized>
+                                            </AuthorizeView>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-        }
-        else
-        {
-            <button class="btn btn-outline-danger mb-3" @onclick="ConnectGoogle">
-                🔗 Połącz z Google Calendar
-            </button>
-        }
-    <div class="mb-3">
-        <label class="form-label">Filtr sala:</label>
-        <select class="form-select" @bind="_filterRoomId">
-            <option value="">(wszystkie)</option>
-            @foreach (var room in _rooms)
-            {
-                <option value="@room.Id">@room.Name</option>
-            }
-        </select>
-    </div>
 
-    <div class="mb-4">
-        <label class="form-label">Status:</label>
-        <select class="form-select" @bind="_filterStatus">
-            <option value="">(wszystkie)</option>
-            <option>Pending</option>
-            <option>Confirmed</option>
-            <option>Rejected</option>
-            <option>Cancelled</option>
-        </select>
-    </div>
+            <div class="col-md-7 order-md-1">
+                
+                @if (_isGoogleConnected)
+                {
+                    <div class="alert alert-success py-2 d-flex align-items-center shadow-sm">
+                        <span class="me-2">✅</span> <span>Twoje konto jest połączone z <strong>Google Calendar</strong>. Rezerwacje dodadzą się automatycznie.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning py-2 d-flex justify-content-between align-items-center shadow-sm">
+                        <span>Połącz z Google, aby synchronizować rezerwacje.</span>
+                        <button class="btn btn-sm btn-outline-dark" @onclick="ConnectGoogle">🔗 Połącz</button>
+                    </div>
+                }
 
-    <h5>Lista rezerwacji</h5>
-    <table class="table table-striped table-light table-hover shadow-sm rounded-3 overflow-hidden">
-        <thead>
-        <tr>
-            <th>Id</th>
-            <th>Sala</th>
-            <th>Od</th>
-            <th>Do</th>
-            <th>Status</th>
-            <th>Cel</th>
-            <th>Akcje</th>
-        </tr>
-        </thead>
-        <tbody>
-        @foreach (var r in FilteredReservations)
-        {
-            <tr>
-                <td>@r.Id</td>
-                <td>@r.RoomName</td>
-                <td>@r.StartTimeUtc.ToLocalTime()</td>
-                <td>@r.EndTimeUtc.ToLocalTime()</td>
-                <td>@r.Status</td>
-                <td>@r.Purpose</td>
-                <td>
-                    <AuthorizeView Roles="Admin">
-                        <Authorized>
-                            @if (r.Status == "Pending")
+                <div class="card border-primary shadow-sm">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="m-0">
+                            @(_activeTab == "room" ? "🏢 Zarezerwuj Salę" : "📺 Wypożycz Sprzęt")
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="_newReservation" OnSubmit="HandleSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+
+                            @if (_activeTab == "room")
                             {
-                                <button class="btn btn-sm btn-success me-1" @onclick="() => ApproveAsync(r.Id)">Zatwierdź</button>
-                                <button class="btn btn-sm btn-warning me-1" @onclick="() => RejectAsync(r.Id)">Odrzuć</button>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Wybierz Salę:</label>
+                                    <select class="form-select form-select-lg" value="@_newReservation.RoomId" @onchange="OnCreateRoomChanged">
+                                        @foreach (var room in _rooms.Where(r => r.IsActive))
+                                        {
+                                            <option value="@room.Id">@room.Name (Miejsc: @room.Capacity)</option>
+                                        }
+                                    </select>
+                                </div>
                             }
-                        </Authorized>
-                    </AuthorizeView>
+                            else // Tab equipment
+                            {
+                                <div class="alert alert-info py-2">
+                                    <small>W tym trybie rezerwujesz <strong>tylko sprzęt</strong>. Sala nie zostanie zablokowana dla innych.</small>
+                                </div>
+                            }
 
-                    @if (r.Status == "Confirmed" || r.Status == "Pending")
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small">Od kiedy</label>
+                                    <div class="input-group">
+                                        <InputDate TValue="DateTime" class="form-control" @bind-Value="_startDate" />
+                                        <input type="time" class="form-control" @bind="_startTime" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small">Do kiedy</label>
+                                    <div class="input-group">
+                                        <InputDate TValue="DateTime" class="form-control" @bind-Value="_endDate" />
+                                        <input type="time" class="form-control" @bind="_endTime" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">Cel rezerwacji:</label>
+                                <InputTextArea class="form-control" @bind-Value="_newReservation.Purpose" rows="2" placeholder="np. Spotkanie zarządu, Prezentacja projektu..." />
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">
+                                    @(_activeTab == "room" ? "Dodatkowe wyposażenie (z tej sali):" : "Wybierz sprzęt do wypożyczenia:")
+                                </label>
+                                <div class="card bg-light border-0">
+                                    <div class="card-body p-2" style="max-height: 200px; overflow-y: auto;">
+                                        @if (_currentEquipmentList.Any())
+                                        {
+                                            <div class="d-flex flex-wrap gap-2">
+                                                @foreach (var item in _currentEquipmentList)
+                                                {
+                                                    <div class="form-check bg-white px-3 py-1 rounded border shadow-sm d-flex align-items-center" style="cursor: pointer;">
+                                                        <input class="form-check-input me-2" type="checkbox" id="eq_@item.EquipmentId" @bind="item.IsSelected" style="cursor: pointer;">
+                                                        <label class="form-check-label m-0 w-100" for="eq_@item.EquipmentId" style="cursor: pointer;">
+                                                            <strong>@item.Name</strong>
+                                                            @if (_activeTab == "equipment") 
+                                                            {
+                                                                <span class="text-muted small ms-1">(@item.Name.Split('(').Last().Trim(')'))</span> 
+                                                                @* Parsowanie nazwy z "Projektor (w Sala 1)" *@
+                                                            }
+                                                        </label>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="text-muted text-center small">Brak dostępnego sprzętu.</div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg w-100 shadow-sm">
+                                @(_activeTab == "room" ? "Zarezerwuj Salę" : "Wypożycz Sprzęt")
+                            </button>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    // --- ZAKŁADKA 3: KALENDARZ ---
+    @if (_activeTab == "calendar")
+    {
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                <div class="btn-group">
+                    <button class="btn btn-outline-secondary" @onclick="PrevMonth">◀</button>
+                    <button class="btn btn-outline-secondary disabled text-dark fw-bold" style="width: 150px; opacity: 1;">@_calendarDate.ToString("MMMM yyyy")</button>
+                    <button class="btn btn-outline-secondary" @onclick="NextMonth">▶</button>
+                </div>
+                
+                <div class="d-flex align-items-center">
+                    <span class="me-2 text-muted">Podgląd dla:</span>
+                    <select class="form-select shadow-sm" style="width: 250px;" @onchange="OnCalendarSourceChanged">
+                        <optgroup label="Sale">
+                            @foreach (var r in _rooms) { <option value="room_@r.Id" selected="@(_calendarTarget == $"room_{r.Id}")">🏠 @r.Name</option> }
+                        </optgroup>
+                        <optgroup label="Sprzęt">
+                             @foreach (var eq in _allEquipment) { <option value="eq_@eq.EquipmentId" selected="@(_calendarTarget == $"eq_{eq.EquipmentId}")">📺 @eq.Name</option> }
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="calendar-grid">
+                    @foreach (var day in new[] { "Pn", "Wt", "Śr", "Cz", "Pt", "Sb", "Nd" })
                     {
-                        <button class="btn btn-sm btn-danger" @onclick="() => CancelAsync(r.Id)">Anuluj</button>
+                        <div class="calendar-header text-muted small text-uppercase">@day</div>
                     }
-                </td>
-            </tr>
-        }
-        </tbody>
-    </table>
+                    
+                    @for (int i = 0; i < _calendarOffset; i++) { <div class="calendar-day empty bg-light"></div> }
 
-    <hr />
+                    @for (int day = 1; day <= _daysInMonth; day++)
+                    {
+                        var date = new DateTime(_calendarDate.Year, _calendarDate.Month, day);
+                        var dayReservations = GetReservationsForDate(date);
+                        var isBusy = dayReservations.Any();
 
-<h5>Nowa rezerwacja</h5>
-    <EditForm Model="_newReservation" OnSubmit="HandleSubmit">
-    <DataAnnotationsValidator />
-    <ValidationSummary />
-
-    <div class="mb-2">
-        <label class="form-label">Sala</label>
-        <select class="form-select" @bind="_newReservation.RoomId">
-            @foreach (var room in _rooms.Where(r => r.IsActive))
-            {
-                <option value="@room.Id">@room.Name</option>
-            }
-        </select>
-    </div>
-
-    <div class="mb-2">
-        <label class="form-label">Od</label>
-        <InputDate TValue="DateTime" class="form-control" @bind-Value="_startDate" />
-        <input type="time" class="form-control mt-1" @bind="_startTime" />
-    </div>
-
-    <div class="mb-2">
-        <label class="form-label">Do</label>
-        <InputDate TValue="DateTime" class="form-control" @bind-Value="_endDate" />
-        <input type="time" class="form-control mt-1" @bind="_endTime" />
-    </div>
-
-    <div class="mb-2">
-        <label class="form-label">Cel</label>
-        <InputTextArea class="form-control" @bind-Value="_newReservation.Purpose" />
-    </div>
-
-    <button type="submit" class="btn btn-primary">Zarezerwuj</button>
-</EditForm>
+                        <div class="calendar-day @(isBusy ? "busy" : "")">
+                            <div class="day-number @(date.Date == DateTime.Today ? "today" : "")">@day</div>
+                            <div class="events">
+                                @foreach(var res in dayReservations)
+                                {
+                                    <div class="event-badge" title="@res.Purpose (@res.Status)">
+                                        @res.StartTimeUtc.ToLocalTime().ToString("HH:mm") - @res.EndTimeUtc.ToLocalTime().ToString("HH:mm")
+                                        @if(res.RoomName == "Wypożyczenie") { <span>(Sprzęt)</span> }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
 }
 
+<style>
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background-color: #e9ecef; border: 1px solid #dee2e6; }
+    .calendar-header { background-color: #f8f9fa; padding: 10px; text-align: center; font-weight: bold; letter-spacing: 1px; }
+    .calendar-day { background-color: white; min-height: 120px; padding: 8px; position: relative; transition: background 0.2s; }
+    .calendar-day:hover { background-color: #fcfcfc; }
+    .calendar-day.busy { background-color: #fff5f5; }
+    .day-number { font-weight: bold; color: #6c757d; margin-bottom: 5px; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+    .day-number.today { background-color: #0d6efd; color: white; }
+    
+    .event-badge {
+        background-color: #3b82f6; color: white; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-bottom: 3px;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help; opacity: 0.9;
+    }
+    .event-badge:hover { opacity: 1; z-index: 10; position: relative; min-width: max-content; }
+</style>
+
 @code {
+    // Stan widoku
+    private string _activeTab = "room"; // Domyślnie: Rezerwacja Sali
+    
+    // Dane
     private List<ReservationDto> _reservations = new();
     private List<RoomDto> _rooms = new();
+    
+    // Listy sprzętu
+    private List<EquipmentDto> _allEquipment = new();     // Wszystkie (do zakładki Sprzęt i Kalendarza)
+    private List<EquipmentDto> _roomEquipment = new();    // Tylko z wybranej sali (do zakładki Sala)
+    
+    // Która lista sprzętu jest aktualnie wyświetlana w formularzu?
+    private List<EquipmentDto> _currentEquipmentList => _activeTab == "room" ? _roomEquipment : _allEquipment;
+    
     private ReservationCreateDto _newReservation = new();
 
-    private bool _isLoading = true;
-    private string? _loadError;
-
+    // Filtry i formularz
     private int? _filterRoomId;
     private string? _filterStatus;
     private DateTime _startDate = DateTime.Today;
@@ -150,29 +303,36 @@ else
     private DateTime _endDate = DateTime.Today;
     private TimeOnly _endTime = new(10, 0);
 
+    private bool _isLoading = true;
+    private string? _loadError;
     private bool _isGoogleConnected = false;
     private bool _isInitialized = false;
+
+    // Kalendarz
+    private DateTime _calendarDate = DateTime.Today;
+    private string _calendarTarget = ""; 
+    private List<ReservationDto> _calendarReservations = new(); 
+    private int _daysInMonth => DateTime.DaysInMonth(_calendarDate.Year, _calendarDate.Month);
+    private int _calendarOffset => ((int)new DateTime(_calendarDate.Year, _calendarDate.Month, 1).DayOfWeek + 6) % 7; 
 
     private IEnumerable<ReservationDto> FilteredReservations =>
         _reservations.Where(r =>
             (_filterRoomId == null || r.RoomId == _filterRoomId) &&
-            (string.IsNullOrEmpty(_filterStatus) || r.Status == _filterStatus));
+            (string.IsNullOrEmpty(_filterStatus) || r.Status == _filterStatus))
+        .OrderByDescending(r => r.StartTimeUtc);
 
+    // --- INIT ---
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_isInitialized)
         {
             _isInitialized = true;
-
             await Auth.GetAuthenticationStateAsync();
-
             await LoadDataAsync();
-
             if (Auth.IsAuthenticated && Auth.UserEmail != null)
             {
                 _isGoogleConnected = await Api.IsGoogleConnectedAsync(Auth.UserEmail);
             }
-
             StateHasChanged();
         }
     }
@@ -185,15 +345,32 @@ else
 
         try
         {
+            // 1. Pobieramy sale (Backend musi zwrócić je RAZEM z wyposażeniem! - patrz punkt 2)
             _rooms = await Api.GetRoomsAsync();
+
+            // 2. Spłaszczamy listę sprzętu do widoku kalendarza/wypożyczalni
+            // Jeśli Backend nie zwróci Equipments, ta lista będzie pusta
+            _allEquipment = _rooms
+                .Where(r => r.Equipments != null) // Zabezpieczenie przed nullem
+                .SelectMany(r => r.Equipments.Select(e => new EquipmentDto
+                    {
+                        EquipmentId = e.EquipmentId,
+                        Name = $"{e.Name} (w {r.Name})",
+                        IsSelected = false
+                    }))
+                .ToList();
 
             if (_rooms.Any())
             {
                 _filterRoomId = _rooms.First().Id;
-
                 _reservations = await Api.GetReservationsForRoomAsync(_filterRoomId.Value);
 
+                // 3. Ustawiamy domyślną salę i ładujemy jej wyposażenie do formularza
                 _newReservation.RoomId = _rooms.First().Id;
+                UpdateRoomEquipment(_newReservation.RoomId.Value);
+
+                _calendarTarget = $"room_{_rooms.First().Id}";
+                await LoadCalendarData();
             }
         }
         catch (Exception ex)
@@ -201,11 +378,9 @@ else
             if (ex.Message.Contains("401"))
             {
                 _loadError = "Sesja wygasła. Zaloguj się ponownie.";
+                Nav.NavigateTo("/login");
             }
-            else
-            {
-                _loadError = ex.Message;
-            }
+            else _loadError = ex.Message;
         }
         finally
         {
@@ -214,58 +389,131 @@ else
         }
     }
 
-    private async Task RefreshReservationsAsync()
+    // Metoda pomocnicza (upewnij się, że ją masz!)
+    private void UpdateRoomEquipment(int roomId)
     {
-        if (_filterRoomId is null)
+        var room = _rooms.FirstOrDefault(r => r.Id == roomId);
+        if (room != null && room.Equipments != null)
         {
-            _reservations.Clear();
-            return;
+            _roomEquipment = room.Equipments.Select(e => new EquipmentDto
+                {
+                    EquipmentId = e.EquipmentId,
+                    Name = e.Name,
+                    IsSelected = false
+                }).ToList();
         }
-        _reservations = await Api.GetReservationsForRoomAsync(_filterRoomId.Value);
+        else _roomEquipment.Clear();
+    }
+
+    // --- ZMIANA ZAKŁADKI ---
+    private void SwitchTab(string tab)
+    {
+        _activeTab = tab;
+        
+        // Reset formularza przy zmianie zakładki
+        _newReservation = new ReservationCreateDto();
+        _startDate = DateTime.Today;
+        _endDate = DateTime.Today;
+
+        // Odznaczamy cały sprzęt
+        foreach(var eq in _allEquipment) eq.IsSelected = false;
+        foreach(var eq in _roomEquipment) eq.IsSelected = false;
+
+        if (tab == "room")
+        {
+            // Domyślna sala
+            if (_rooms.Any())
+            {
+                _newReservation.RoomId = _rooms.First().Id;
+                UpdateRoomEquipment(_newReservation.RoomId.Value);
+            }
+        }
+        else if (tab == "equipment")
+        {
+            // Tryb wypożyczalni: Brak sali
+            _newReservation.RoomId = null;
+            // Sprzęt: używamy _allEquipment
+        }
+    }
+
+    // --- LOGIKA FORMULARZA ---
+
+    private void OnCreateRoomChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int newRoomId))
+        {
+            _newReservation.RoomId = newRoomId;
+            UpdateRoomEquipment(newRoomId);
+        }
     }
 
     private async Task HandleSubmit(EditContext context)
     {
-        _newReservation.StartTimeUtc = _startDate.Date.Add(_startTime.ToTimeSpan());
-        _newReservation.EndTimeUtc = _endDate.Date.Add(_endTime.ToTimeSpan());
+        _newReservation.StartTimeUtc = _startDate.Date.Add(_startTime.ToTimeSpan()).ToUniversalTime();
+        _newReservation.EndTimeUtc = _endDate.Date.Add(_endTime.ToTimeSpan()).ToUniversalTime();
+        
+        // Pobierz zaznaczone ID z odpowiedniej listy (zależnie od aktywnej zakładki)
+        _newReservation.SelectedEquipmentIds = _currentEquipmentList
+            .Where(e => e.IsSelected)
+            .Select(e => e.EquipmentId)
+            .ToList();
 
         if (context.Validate())
         {
             var created = await Api.CreateReservationAsync(_newReservation);
-            _reservations.Add(created);
+            
+            // Dodaj do listy tylko jeśli pasuje do filtra (lub odśwież całość)
+            if (_filterRoomId == null || _filterRoomId == created.RoomId || created.RoomId == 0)
+            {
+                _reservations.Insert(0, created); // Dodaj na górę
+            }
 
+            // Reset
             _newReservation = new ReservationCreateDto();
-            _startDate = DateTime.Today;
-            _startTime = new TimeOnly(9, 0);
-            _endDate = DateTime.Today;
-            _endTime = new TimeOnly(10, 0);
+            foreach(var eq in _currentEquipmentList) eq.IsSelected = false;
+            
+            if (_activeTab == "room" && _rooms.Any())
+            {
+                _newReservation.RoomId = _rooms.First().Id;
+                UpdateRoomEquipment(_newReservation.RoomId.Value);
+            }
+            else
+            {
+                _newReservation.RoomId = null;
+            }
         }
     }
 
-    private async Task ApproveAsync(int id)
+    // --- POZOSTAŁE (API & KALENDARZ) ---
+    private async Task RefreshReservationsAsync()
     {
-        await Api.ApproveReservationAsync(id);
-        await RefreshReservationsAsync();
+        if (_filterRoomId is null) { _reservations.Clear(); return; }
+        _reservations = await Api.GetReservationsForRoomAsync(_filterRoomId.Value);
     }
+    
+    private async Task ApproveAsync(int id) { await Api.ApproveReservationAsync(id); await RefreshReservationsAsync(); }
+    private async Task RejectAsync(int id) { await Api.RejectReservationAsync(id); await RefreshReservationsAsync(); }
+    private async Task CancelAsync(int id) { await Api.CancelReservationAsync(id); await RefreshReservationsAsync(); }
+    private async Task ConnectGoogle() { var url = await Api.GetGoogleAuthUrlAsync(); if (!string.IsNullOrEmpty(url)) Nav.NavigateTo(url, forceLoad: true); }
+    
+    private async Task OnCalendarSourceChanged(ChangeEventArgs e) { _calendarTarget = e.Value?.ToString() ?? ""; await LoadCalendarData(); }
+    private async Task PrevMonth() { _calendarDate = _calendarDate.AddMonths(-1); await LoadCalendarData(); }
+    private async Task NextMonth() { _calendarDate = _calendarDate.AddMonths(1); await LoadCalendarData(); }
+    
+    private async Task LoadCalendarData()
+    {
+        if (string.IsNullOrEmpty(_calendarTarget)) return;
+        var parts = _calendarTarget.Split('_');
+        var id = int.Parse(parts[1]);
+        
+        if (parts[0] == "room") _calendarReservations = await Api.GetReservationsForRoomAsync(id);
+        else _calendarReservations = await Api.GetReservationsForEquipmentAsync(id);
+        
+        _calendarReservations = _calendarReservations.Where(r => r.Status != "Rejected" && r.Status != "Cancelled").ToList();
+    }
+    
+    private List<ReservationDto> GetReservationsForDate(DateTime date) => 
+        _calendarReservations.Where(r => r.StartTimeUtc.ToLocalTime().Date == date.Date).ToList();
 
-    private async Task RejectAsync(int id)
-    {
-        await Api.RejectReservationAsync(id);
-        await RefreshReservationsAsync();
-    }
-
-    private async Task CancelAsync(int id)
-    {
-        await Api.CancelReservationAsync(id);
-        await RefreshReservationsAsync();
-    }
-
-    private async Task ConnectGoogle()
-    {
-        var url = await Api.GetGoogleAuthUrlAsync();
-        if (!string.IsNullOrEmpty(url))
-        {
-            Nav.NavigateTo(url, forceLoad: true);
-        }
-    }
+    private string GetStatusColor(string status) => status switch { "Approved" => "bg-success", "Pending" => "bg-warning text-dark", "Rejected" => "bg-danger", _ => "bg-secondary" };
 }

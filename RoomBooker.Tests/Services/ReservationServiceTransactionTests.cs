@@ -27,7 +27,6 @@ namespace RoomBooker.Tests.Services
         {
             using var db = CreateContext();
 
-            // SEED
             db.Reservations.Add(new Reservation
             {
                 RoomId = 1,
@@ -53,10 +52,10 @@ namespace RoomBooker.Tests.Services
             var initialReservations = db.Reservations.Count();
             var initialAuditLogs = db.AuditLogs.Count();
 
-            var googleService = new GoogleAuthService(null!);
-            var service = new ReservationService(db, googleService);
+            var service = new ReservationService(db, null!);
 
-            var dto = new ReservationDto
+            // ZMIANA: ReservationCreateDto
+            var dto = new ReservationCreateDto
             {
                 RoomId = 1,
                 UserId = 2,

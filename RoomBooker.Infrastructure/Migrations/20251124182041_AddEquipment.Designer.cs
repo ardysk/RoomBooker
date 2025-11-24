@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using RoomBooker.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using RoomBooker.Infrastructure.Data;
 namespace RoomBooker.Infrastructure.Migrations
 {
     [DbContext(typeof(RoomBookerDbContext))]
-    partial class RoomBookerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251124182041_AddEquipment")]
+    partial class AddEquipment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -184,7 +187,7 @@ namespace RoomBooker.Infrastructure.Migrations
                     b.Property<string>("RejectionReason")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("RoomId")
+                    b.Property<int>("RoomId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("StartTimeUtc")
@@ -332,7 +335,7 @@ namespace RoomBooker.Infrastructure.Migrations
                             UserId = 1,
                             DisplayName = "Administrator",
                             Email = "admin@roombooker.local",
-                            HashedPassword = "$2a$11$cukk4WeGUdkjmyERgRfukeQUpgzah1QpyDez84w1VOqLx5x8HBYay",
+                            HashedPassword = "$2a$11$wDKm3ufVKHDpczQFKIsJLO49eQ5EBj6amHWvU5PNXpUQjrDKLJQ/6",
                             Role = "Admin"
                         },
                         new
@@ -402,7 +405,8 @@ namespace RoomBooker.Infrastructure.Migrations
                     b.HasOne("RoomBooker.Core.Entities.Room", "Room")
                         .WithMany("Reservations")
                         .HasForeignKey("RoomId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("RoomBooker.Core.Entities.User", "User")
                         .WithMany("Reservations")

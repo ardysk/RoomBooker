@@ -4,7 +4,6 @@ namespace RoomBooker.Core.Entities
 {
     public class MaintenanceWindow
     {
-        // KLUCZ GŁÓWNY – MUSI BYĆ BlockId
         public int BlockId { get; set; }
 
         public int RoomId { get; set; }

@@ -59,6 +59,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<RoomBooker.Infrastructure.Data.DataSeeder>();
 builder.Services.AddValidatorsFromAssemblyContaining<RoomBooker.Core.Validators.ReservationValidator>();
+builder.Services.AddScoped<IEquipmentService, EquipmentService>();
 
 // 4. Build Application
 var app = builder.Build();
