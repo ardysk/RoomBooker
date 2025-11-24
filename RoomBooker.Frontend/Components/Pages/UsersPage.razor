@@ -104,22 +104,18 @@ else
     private string? _loadError;
     private bool _isInitialized = false;
 
-    // Zmienne do edycji
     private bool _isEditing = false;
     private UserUpdateDto? _editModel;
     private int _editingUserId;
 
-    // Używamy OnAfterRenderAsync zamiast OnInitializedAsync
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_isInitialized)
         {
             _isInitialized = true;
 
-            // 1. Przywróć sesję
             await Auth.GetAuthenticationStateAsync();
 
-            // 2. Pobierz dane
             await LoadUsers();
 
             StateHasChanged();

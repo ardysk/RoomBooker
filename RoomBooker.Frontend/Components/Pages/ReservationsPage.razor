@@ -38,7 +38,7 @@ else if (_loadError is not null)
 }
 else
 {
-    // --- ZAKŁADKA 1 i 2: FORMULARZE REZERWACJI ---
+
     @if (_activeTab == "room" || _activeTab == "equipment")
     {
         <div class="row">
@@ -180,7 +180,6 @@ else
                                                             @if (_activeTab == "equipment") 
                                                             {
                                                                 <span class="text-muted small ms-1">(@item.Name.Split('(').Last().Trim(')'))</span> 
-                                                                @* Parsowanie nazwy z "Projektor (w Sala 1)" *@
                                                             }
                                                         </label>
                                                     </div>
@@ -205,7 +204,6 @@ else
         </div>
     }
 
-    // --- ZAKŁADKA 3: KALENDARZ ---
     @if (_activeTab == "calendar")
     {
         <div class="card shadow-sm border-0">
@@ -279,23 +277,18 @@ else
 </style>
 
 @code {
-    // Stan widoku
-    private string _activeTab = "room"; // Domyślnie: Rezerwacja Sali
+    private string _activeTab = "room";
     
-    // Dane
     private List<ReservationDto> _reservations = new();
     private List<RoomDto> _rooms = new();
     
-    // Listy sprzętu
-    private List<EquipmentDto> _allEquipment = new();     // Wszystkie (do zakładki Sprzęt i Kalendarza)
-    private List<EquipmentDto> _roomEquipment = new();    // Tylko z wybranej sali (do zakładki Sala)
+    private List<EquipmentDto> _allEquipment = new();
+    private List<EquipmentDto> _roomEquipment = new();
     
-    // Która lista sprzętu jest aktualnie wyświetlana w formularzu?
     private List<EquipmentDto> _currentEquipmentList => _activeTab == "room" ? _roomEquipment : _allEquipment;
     
     private ReservationCreateDto _newReservation = new();
 
-    // Filtry i formularz
     private int? _filterRoomId;
     private string? _filterStatus;
     private DateTime _startDate = DateTime.Today;
@@ -308,7 +301,6 @@ else
     private bool _isGoogleConnected = false;
     private bool _isInitialized = false;
 
-    // Kalendarz
     private DateTime _calendarDate = DateTime.Today;
     private string _calendarTarget = ""; 
     private List<ReservationDto> _calendarReservations = new(); 
@@ -345,13 +337,10 @@ else
 
         try
         {
-            // 1. Pobieramy sale (Backend musi zwrócić je RAZEM z wyposażeniem! - patrz punkt 2)
             _rooms = await Api.GetRoomsAsync();
 
-            // 2. Spłaszczamy listę sprzętu do widoku kalendarza/wypożyczalni
-            // Jeśli Backend nie zwróci Equipments, ta lista będzie pusta
             _allEquipment = _rooms
-                .Where(r => r.Equipments != null) // Zabezpieczenie przed nullem
+                .Where(r => r.Equipments != null)
                 .SelectMany(r => r.Equipments.Select(e => new EquipmentDto
                     {
                         EquipmentId = e.EquipmentId,
@@ -365,7 +354,6 @@ else
                 _filterRoomId = _rooms.First().Id;
                 _reservations = await Api.GetReservationsForRoomAsync(_filterRoomId.Value);
 
-                // 3. Ustawiamy domyślną salę i ładujemy jej wyposażenie do formularza
                 _newReservation.RoomId = _rooms.First().Id;
                 UpdateRoomEquipment(_newReservation.RoomId.Value);
 
@@ -389,7 +377,6 @@ else
         }
     }
 
-    // Metoda pomocnicza (upewnij się, że ją masz!)
     private void UpdateRoomEquipment(int roomId)
     {
         var room = _rooms.FirstOrDefault(r => r.Id == roomId);
@@ -405,23 +392,19 @@ else
         else _roomEquipment.Clear();
     }
 
-    // --- ZMIANA ZAKŁADKI ---
     private void SwitchTab(string tab)
     {
         _activeTab = tab;
         
-        // Reset formularza przy zmianie zakładki
         _newReservation = new ReservationCreateDto();
         _startDate = DateTime.Today;
         _endDate = DateTime.Today;
 
-        // Odznaczamy cały sprzęt
         foreach(var eq in _allEquipment) eq.IsSelected = false;
         foreach(var eq in _roomEquipment) eq.IsSelected = false;
 
         if (tab == "room")
         {
-            // Domyślna sala
             if (_rooms.Any())
             {
                 _newReservation.RoomId = _rooms.First().Id;
@@ -430,13 +413,10 @@ else
         }
         else if (tab == "equipment")
         {
-            // Tryb wypożyczalni: Brak sali
             _newReservation.RoomId = null;
-            // Sprzęt: używamy _allEquipment
         }
     }
 
-    // --- LOGIKA FORMULARZA ---
 
     private void OnCreateRoomChanged(ChangeEventArgs e)
     {
@@ -451,8 +431,7 @@ else
     {
         _newReservation.StartTimeUtc = _startDate.Date.Add(_startTime.ToTimeSpan()).ToUniversalTime();
         _newReservation.EndTimeUtc = _endDate.Date.Add(_endTime.ToTimeSpan()).ToUniversalTime();
-        
-        // Pobierz zaznaczone ID z odpowiedniej listy (zależnie od aktywnej zakładki)
+
         _newReservation.SelectedEquipmentIds = _currentEquipmentList
             .Where(e => e.IsSelected)
             .Select(e => e.EquipmentId)
@@ -462,13 +441,11 @@ else
         {
             var created = await Api.CreateReservationAsync(_newReservation);
             
-            // Dodaj do listy tylko jeśli pasuje do filtra (lub odśwież całość)
             if (_filterRoomId == null || _filterRoomId == created.RoomId || created.RoomId == 0)
             {
-                _reservations.Insert(0, created); // Dodaj na górę
+                _reservations.Insert(0, created);
             }
 
-            // Reset
             _newReservation = new ReservationCreateDto();
             foreach(var eq in _currentEquipmentList) eq.IsSelected = false;
             
@@ -484,7 +461,6 @@ else
         }
     }
 
-    // --- POZOSTAŁE (API & KALENDARZ) ---
     private async Task RefreshReservationsAsync()
     {
         if (_filterRoomId is null) { _reservations.Clear(); return; }

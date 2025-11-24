@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using RoomBooker.Core.Dtos;
 using RoomBooker.Core.Entities;
 using RoomBooker.Infrastructure.Data;
@@ -17,6 +18,7 @@ namespace RoomBooker.Tests.Services
         {
             var options = new DbContextOptionsBuilder<RoomBookerDbContext>()
                 .UseInMemoryDatabase(databaseName: $"RoomBooker_Transaction_{Guid.NewGuid()}")
+                .ConfigureWarnings(x => x.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
 
             return new RoomBookerDbContext(options);
@@ -27,6 +29,7 @@ namespace RoomBooker.Tests.Services
         {
             using var db = CreateContext();
 
+            // SEED
             db.Reservations.Add(new Reservation
             {
                 RoomId = 1,
@@ -54,7 +57,6 @@ namespace RoomBooker.Tests.Services
 
             var service = new ReservationService(db, null!);
 
-            // ZMIANA: ReservationCreateDto
             var dto = new ReservationCreateDto
             {
                 RoomId = 1,

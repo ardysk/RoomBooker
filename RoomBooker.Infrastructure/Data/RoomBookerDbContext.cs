@@ -29,7 +29,7 @@ namespace RoomBooker.Infrastructure.Data
             modelBuilder.Entity<Reservation>().HasKey(r => r.ReservationId);
             modelBuilder.Entity<MaintenanceWindow>().HasKey(m => m.BlockId);
             modelBuilder.Entity<AuditLog>().HasKey(a => a.LogId);
-            modelBuilder.Entity<Equipment>().HasKey(e => e.EquipmentId); // Klucz dla Equipment
+            modelBuilder.Entity<Equipment>().HasKey(e => e.EquipmentId);
 
             // Unique Constraints
             modelBuilder.Entity<User>()

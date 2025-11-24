@@ -83,11 +83,9 @@ namespace RoomBooker.Api.Controllers
             return NoContent();
         }
 
-        // 👇 TUTAJ BYŁ BŁĄD (Czekał na [FromQuery] int userId, którego nie było)
         [HttpPost("{id:int}/cancel")]
         public async Task<IActionResult> Cancel(int id)
         {
-            // Poprawka: Bierzemy ID z tokena
             var userIdClaim = User.FindFirst("sub") ?? User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
                 return Unauthorized();

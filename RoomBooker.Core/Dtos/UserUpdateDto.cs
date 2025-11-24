@@ -14,8 +14,6 @@ namespace RoomBooker.Core.Dtos
         [Required(ErrorMessage = "Rola jest wymagana.")]
         [RegularExpression("^(Admin|User)$", ErrorMessage = "Rola musi być 'Admin' lub 'User'.")]
         public string Role { get; set; } = default!;
-
-        //[MinLength(6, ErrorMessage = "Hasło musi mieć min. 6 znaków.")]
         public string? NewPassword { get; set; }
     }
 }

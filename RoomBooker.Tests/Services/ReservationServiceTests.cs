@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using RoomBooker.Core.Dtos;
 using RoomBooker.Core.Entities;
 using RoomBooker.Infrastructure.Data;
@@ -17,6 +18,7 @@ namespace RoomBooker.Tests.Services
         {
             var options = new DbContextOptionsBuilder<RoomBookerDbContext>()
                 .UseInMemoryDatabase(databaseName: $"RoomBooker_{Guid.NewGuid()}")
+                .ConfigureWarnings(x => x.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
 
             return new RoomBookerDbContext(options);
@@ -45,11 +47,8 @@ namespace RoomBooker.Tests.Services
             db.Users.Add(user);
             db.Rooms.Add(room);
             await db.SaveChangesAsync();
-
-            // Przekazujemy null! jako serwis Google, bo to tylko testy
             var service = new ReservationService(db, null!);
 
-            // ZMIANA: Używamy ReservationCreateDto
             var dto = new ReservationCreateDto
             {
                 RoomId = room.RoomId,
@@ -96,7 +95,6 @@ namespace RoomBooker.Tests.Services
 
             var service = new ReservationService(db, null!);
 
-            // ZMIANA: ReservationCreateDto
             var dto = new ReservationCreateDto
             {
                 RoomId = 1,

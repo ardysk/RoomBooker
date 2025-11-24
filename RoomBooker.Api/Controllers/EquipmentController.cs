@@ -7,7 +7,7 @@ namespace RoomBooker.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize(Roles = "Admin")] // Tylko dla Admina
+    [Authorize(Roles = "Admin")]
     public class EquipmentController : ControllerBase
     {
         private readonly IEquipmentService _service;

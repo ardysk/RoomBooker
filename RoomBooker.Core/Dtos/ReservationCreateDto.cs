@@ -20,7 +20,6 @@ namespace RoomBooker.Core.Dtos
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            // 1. Sprawdź czy koniec jest po początku
             if (EndTimeUtc <= StartTimeUtc)
             {
                 yield return new ValidationResult(
@@ -28,15 +27,12 @@ namespace RoomBooker.Core.Dtos
                     new[] { nameof(EndTimeUtc) });
             }
 
-            // 2. NOWOŚĆ: Sprawdź czy start jest w przyszłości (+1 minuta marginesu)
             if (StartTimeUtc < DateTime.UtcNow.AddMinutes(1))
             {
                 yield return new ValidationResult(
                    "Rezerwacja musi rozpoczynać się w przyszłości (minimum za minutę).",
                    new[] { nameof(StartTimeUtc) });
             }
-
-            // 3. Sprawdź czy wybrano zasób
             bool hasRoom = RoomId.HasValue && RoomId.Value > 0;
             bool hasEquipment = SelectedEquipmentIds != null && SelectedEquipmentIds.Any();
 

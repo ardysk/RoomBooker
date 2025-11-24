@@ -10,7 +10,7 @@ namespace RoomBooker.Frontend.Services
         private readonly ApiClient _apiClient;
         private readonly ProtectedLocalStorage _storage;
 
-        private string? _userEmail; // Tutaj trzymamy prawdziwy email
+        private string? _userEmail;
         private bool _successfullyLoaded = false;
 
         public AuthState(ApiClient apiClient, ProtectedLocalStorage storage)
@@ -27,7 +27,6 @@ namespace RoomBooker.Frontend.Services
             {
                 var tokenResult = await _storage.GetAsync<string>("authToken");
 
-                // Próbujemy odzyskać też email z dysku
                 var emailResult = await _storage.GetAsync<string>("userEmail");
 
                 if (!tokenResult.Success || string.IsNullOrEmpty(tokenResult.Value))
@@ -38,13 +37,11 @@ namespace RoomBooker.Frontend.Services
                 var token = tokenResult.Value;
                 _apiClient.SetToken(token);
 
-                // Ustawiamy email w pamięci
                 if (emailResult.Success) _userEmail = emailResult.Value;
 
                 var claims = ParseClaimsFromJwt(token);
                 var identity = new ClaimsIdentity(claims, "jwt");
 
-                // Jeśli email nie został pobrany z storage, spróbujmy z tokena
                 if (string.IsNullOrEmpty(_userEmail))
                 {
                     _userEmail = claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value
@@ -65,8 +62,7 @@ namespace RoomBooker.Frontend.Services
             var ok = await _apiClient.LoginAsync(email, password);
             if (ok)
             {
-                _userEmail = email; // Zapamiętujemy email
-
+                _userEmail = email;
                 if (!string.IsNullOrEmpty(_apiClient.JwtToken))
                 {
                     await _storage.SetAsync("authToken", _apiClient.JwtToken);
