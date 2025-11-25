@@ -44,62 +44,65 @@ else
         <div class="row">
             <div class="col-md-5 order-md-2 mb-4">
                 <div class="card shadow-sm h-100">
-                    <div class="card-header bg-light fw-bold">Twoje ostatnie rezerwacje</div>
+                    <div class="card-header bg-light fw-bold">Twoje rezerwacje (w tej sali)</div>
                     <div class="card-body p-0 overflow-auto" style="max-height: 600px;">
-                        <table class="table table-hover mb-0" style="font-size: 0.9rem;">
-                            <thead class="table-dark sticky-top">
-                                <tr>
-                                    <th>Zasób</th>
-                                    <th>Kiedy</th>
-                                    <th>Status</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var r in FilteredReservations)
-                                {
+
+                        @* Filter for current user *@
+                        @{
+                            var myReservations = FilteredReservations.Where(r => r.UserId == _currentUserId).ToList();
+                        }
+
+                        @if (myReservations.Any())
+                        {
+                            <table class="table table-hover table-striped mb-0" style="font-size: 0.9rem;">
+                                <thead class="table-dark sticky-top">
                                     <tr>
-                                        <td>
-                                            <strong>@r.RoomName</strong>
-                                            <div class="text-muted small text-truncate" style="max-width: 150px;">@r.Purpose</div>
-                                        </td>
-                                        <td>
-                                            @r.StartTimeUtc.ToLocalTime().ToString("dd.MM HH:mm") <br/>
-                                            <span class="text-muted">do @r.EndTimeUtc.ToLocalTime().ToString("HH:mm")</span>
-                                        </td>
-                                        <td><span class="badge @GetStatusColor(r.Status)">@r.Status</span></td>
-                                        <td class="text-end">
-                                            @if (r.Status != "Cancelled" && r.Status != "Rejected")
-                                            {
-                                                <button class="btn btn-sm btn-outline-danger py-0" @onclick="() => CancelAsync(r.Id)" title="Anuluj">×</button>
-                                            }
-                                            
-                                            <AuthorizeView Roles="Admin">
-                                                <Authorized>
-                                                    @if (r.Status == "Pending")
-                                                    {
-                                                        <div class="mt-1">
-                                                            <button class="btn btn-sm btn-success py-0 me-1" @onclick="() => ApproveAsync(r.Id)">✔</button>
-                                                            <button class="btn btn-sm btn-warning py-0" @onclick="() => RejectAsync(r.Id)">✖</button>
-                                                        </div>
-                                                    }
-                                                </Authorized>
-                                            </AuthorizeView>
-                                        </td>
+                                        <th>Zasób</th>
+                                        <th>Kiedy</th>
+                                        <th>Status</th>
+                                        <th></th>
                                     </tr>
-                                }
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    @foreach (var r in myReservations)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@r.RoomName</strong>
+                                                <div class="text-muted small text-truncate" style="max-width: 150px;">@r.Purpose</div>
+                                            </td>
+                                            <td>
+                                                @r.StartTimeUtc.ToLocalTime().ToString("dd.MM HH:mm") <br />
+                                                <span class="text-muted">do @r.EndTimeUtc.ToLocalTime().ToString("HH:mm")</span>
+                                            </td>
+                                            <td><span class="badge @GetStatusColor(r.Status)">@r.Status</span></td>
+                                            <td class="text-end">
+                                                @if (r.Status != "Cancelled" && r.Status != "Rejected")
+                                                {
+                                                    <button class="btn btn-sm btn-outline-danger py-0" @onclick="() => CancelAsync(r.Id)" title="Anuluj">×</button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <div class="p-4 text-center text-muted">
+                                <i>Brak Twoich rezerwacji w wybranej sali.</i>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
 
             <div class="col-md-7 order-md-1">
-                
+
                 @if (_isGoogleConnected)
                 {
                     <div class="alert alert-success py-2 d-flex align-items-center shadow-sm">
-                        <span class="me-2">✅</span> <span>Twoje konto jest połączone z <strong>Google Calendar</strong>. Rezerwacje dodadzą się automatycznie.</span>
+                        <span class="me-2">✅</span> <span>Twoje konto jest połączone z <strong>Google Calendar</strong>.</span>
                     </div>
                 }
                 else
@@ -133,7 +136,7 @@ else
                                     </select>
                                 </div>
                             }
-                            else // Tab equipment
+                            else
                             {
                                 <div class="alert alert-info py-2">
                                     <small>W tym trybie rezerwujesz <strong>tylko sprzęt</strong>. Sala nie zostanie zablokowana dla innych.</small>
@@ -177,9 +180,9 @@ else
                                                         <input class="form-check-input me-2" type="checkbox" id="eq_@item.EquipmentId" @bind="item.IsSelected" style="cursor: pointer;">
                                                         <label class="form-check-label m-0 w-100" for="eq_@item.EquipmentId" style="cursor: pointer;">
                                                             <strong>@item.Name</strong>
-                                                            @if (_activeTab == "equipment") 
+                                                            @if (_activeTab == "equipment")
                                                             {
-                                                                <span class="text-muted small ms-1">(@item.Name.Split('(').Last().Trim(')'))</span> 
+                                                                <span class="text-muted small ms-1">(@item.Name.Split('(').Last().Trim(')'))</span>
                                                             }
                                                         </label>
                                                     </div>
@@ -204,6 +207,7 @@ else
         </div>
     }
 
+    // --- ZAKŁADKA 3: KALENDARZ ---
     @if (_activeTab == "calendar")
     {
         <div class="card shadow-sm border-0">
@@ -213,15 +217,21 @@ else
                     <button class="btn btn-outline-secondary disabled text-dark fw-bold" style="width: 150px; opacity: 1;">@_calendarDate.ToString("MMMM yyyy")</button>
                     <button class="btn btn-outline-secondary" @onclick="NextMonth">▶</button>
                 </div>
-                
+
                 <div class="d-flex align-items-center">
                     <span class="me-2 text-muted">Podgląd dla:</span>
                     <select class="form-select shadow-sm" style="width: 250px;" @onchange="OnCalendarSourceChanged">
                         <optgroup label="Sale">
-                            @foreach (var r in _rooms) { <option value="room_@r.Id" selected="@(_calendarTarget == $"room_{r.Id}")">🏠 @r.Name</option> }
+                            @foreach (var r in _rooms)
+                            {
+                                <option value="room_@r.Id" selected="@(_calendarTarget == $"room_{r.Id}")">🏠 @r.Name</option>
+                            }
                         </optgroup>
                         <optgroup label="Sprzęt">
-                             @foreach (var eq in _allEquipment) { <option value="eq_@eq.EquipmentId" selected="@(_calendarTarget == $"eq_{eq.EquipmentId}")">📺 @eq.Name</option> }
+                            @foreach (var eq in _allEquipment)
+                            {
+                                <option value="eq_@eq.EquipmentId" selected="@(_calendarTarget == $"eq_{eq.EquipmentId}")">📺 @eq.Name</option>
+                            }
                         </optgroup>
                     </select>
                 </div>
@@ -232,8 +242,11 @@ else
                     {
                         <div class="calendar-header text-muted small text-uppercase">@day</div>
                     }
-                    
-                    @for (int i = 0; i < _calendarOffset; i++) { <div class="calendar-day empty bg-light"></div> }
+
+                    @for (int i = 0; i < _calendarOffset; i++)
+                    {
+                        <div class="calendar-day empty bg-light"></div>
+                    }
 
                     @for (int day = 1; day <= _daysInMonth; day++)
                     {
@@ -244,11 +257,14 @@ else
                         <div class="calendar-day @(isBusy ? "busy" : "")">
                             <div class="day-number @(date.Date == DateTime.Today ? "today" : "")">@day</div>
                             <div class="events">
-                                @foreach(var res in dayReservations)
+                                @foreach (var res in dayReservations)
                                 {
                                     <div class="event-badge" title="@res.Purpose (@res.Status)">
                                         @res.StartTimeUtc.ToLocalTime().ToString("HH:mm") - @res.EndTimeUtc.ToLocalTime().ToString("HH:mm")
-                                        @if(res.RoomName == "Wypożyczenie") { <span>(Sprzęt)</span> }
+                                        @if (res.RoomName == "Wypożyczenie")
+                                        {
+                                            <span>(Sprzęt)</span>
+                                        }
                                     </div>
                                 }
                             </div>
@@ -261,32 +277,87 @@ else
 }
 
 <style>
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background-color: #e9ecef; border: 1px solid #dee2e6; }
-    .calendar-header { background-color: #f8f9fa; padding: 10px; text-align: center; font-weight: bold; letter-spacing: 1px; }
-    .calendar-day { background-color: white; min-height: 120px; padding: 8px; position: relative; transition: background 0.2s; }
-    .calendar-day:hover { background-color: #fcfcfc; }
-    .calendar-day.busy { background-color: #fff5f5; }
-    .day-number { font-weight: bold; color: #6c757d; margin-bottom: 5px; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-    .day-number.today { background-color: #0d6efd; color: white; }
-    
-    .event-badge {
-        background-color: #3b82f6; color: white; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-bottom: 3px;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help; opacity: 0.9;
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        background-color: #e9ecef;
+        border: 1px solid #dee2e6;
     }
-    .event-badge:hover { opacity: 1; z-index: 10; position: relative; min-width: max-content; }
+
+    .calendar-header {
+        background-color: #f8f9fa;
+        padding: 10px;
+        text-align: center;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
+
+    .calendar-day {
+        background-color: white;
+        min-height: 120px;
+        padding: 8px;
+        position: relative;
+        transition: background 0.2s;
+    }
+
+        .calendar-day:hover {
+            background-color: #fcfcfc;
+        }
+
+        .calendar-day.busy {
+            background-color: #fff5f5;
+        }
+
+    .day-number {
+        font-weight: bold;
+        color: #6c757d;
+        margin-bottom: 5px;
+        width: 25px;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+        .day-number.today {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+    .event-badge {
+        background-color: #3b82f6;
+        color: white;
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-bottom: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: help;
+        opacity: 0.9;
+    }
+
+        .event-badge:hover {
+            opacity: 1;
+            z-index: 10;
+            position: relative;
+            min-width: max-content;
+        }
 </style>
 
 @code {
     private string _activeTab = "room";
-    
+    private int _currentUserId;
+
     private List<ReservationDto> _reservations = new();
     private List<RoomDto> _rooms = new();
-    
     private List<EquipmentDto> _allEquipment = new();
     private List<EquipmentDto> _roomEquipment = new();
-    
     private List<EquipmentDto> _currentEquipmentList => _activeTab == "room" ? _roomEquipment : _allEquipment;
-    
+
     private ReservationCreateDto _newReservation = new();
 
     private int? _filterRoomId;
@@ -302,10 +373,10 @@ else
     private bool _isInitialized = false;
 
     private DateTime _calendarDate = DateTime.Today;
-    private string _calendarTarget = ""; 
-    private List<ReservationDto> _calendarReservations = new(); 
+    private string _calendarTarget = "";
+    private List<ReservationDto> _calendarReservations = new();
     private int _daysInMonth => DateTime.DaysInMonth(_calendarDate.Year, _calendarDate.Month);
-    private int _calendarOffset => ((int)new DateTime(_calendarDate.Year, _calendarDate.Month, 1).DayOfWeek + 6) % 7; 
+    private int _calendarOffset => ((int)new DateTime(_calendarDate.Year, _calendarDate.Month, 1).DayOfWeek + 6) % 7;
 
     private IEnumerable<ReservationDto> FilteredReservations =>
         _reservations.Where(r =>
@@ -313,13 +384,15 @@ else
             (string.IsNullOrEmpty(_filterStatus) || r.Status == _filterStatus))
         .OrderByDescending(r => r.StartTimeUtc);
 
-    // --- INIT ---
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && !_isInitialized)
         {
             _isInitialized = true;
             await Auth.GetAuthenticationStateAsync();
+
+            _currentUserId = await Auth.GetUserId();
+
             await LoadDataAsync();
             if (Auth.IsAuthenticated && Auth.UserEmail != null)
             {
@@ -339,15 +412,12 @@ else
         {
             _rooms = await Api.GetRoomsAsync();
 
-            _allEquipment = _rooms
-                .Where(r => r.Equipments != null)
-                .SelectMany(r => r.Equipments.Select(e => new EquipmentDto
-                    {
-                        EquipmentId = e.EquipmentId,
-                        Name = $"{e.Name} (w {r.Name})",
-                        IsSelected = false
-                    }))
-                .ToList();
+            _allEquipment = _rooms.SelectMany(r => r.Equipments.Select(e => new EquipmentDto
+                {
+                    EquipmentId = e.EquipmentId,
+                    Name = $"{e.Name} (w {r.Name})",
+                    IsSelected = false
+                })).ToList();
 
             if (_rooms.Any())
             {
@@ -365,7 +435,7 @@ else
         {
             if (ex.Message.Contains("401"))
             {
-                _loadError = "Sesja wygasła. Zaloguj się ponownie.";
+                _loadError = "Sesja wygasła.";
                 Nav.NavigateTo("/login");
             }
             else _loadError = ex.Message;
@@ -377,31 +447,16 @@ else
         }
     }
 
-    private void UpdateRoomEquipment(int roomId)
-    {
-        var room = _rooms.FirstOrDefault(r => r.Id == roomId);
-        if (room != null && room.Equipments != null)
-        {
-            _roomEquipment = room.Equipments.Select(e => new EquipmentDto
-                {
-                    EquipmentId = e.EquipmentId,
-                    Name = e.Name,
-                    IsSelected = false
-                }).ToList();
-        }
-        else _roomEquipment.Clear();
-    }
-
     private void SwitchTab(string tab)
     {
         _activeTab = tab;
-        
+
         _newReservation = new ReservationCreateDto();
         _startDate = DateTime.Today;
         _endDate = DateTime.Today;
 
-        foreach(var eq in _allEquipment) eq.IsSelected = false;
-        foreach(var eq in _roomEquipment) eq.IsSelected = false;
+        foreach (var eq in _allEquipment) eq.IsSelected = false;
+        foreach (var eq in _roomEquipment) eq.IsSelected = false;
 
         if (tab == "room")
         {
@@ -417,14 +472,36 @@ else
         }
     }
 
+    private void UpdateRoomEquipment(int roomId)
+    {
+        var room = _rooms.FirstOrDefault(r => r.Id == roomId);
+        if (room != null)
+        {
+            _roomEquipment = room.Equipments.Select(e => new EquipmentDto
+                {
+                    EquipmentId = e.EquipmentId,
+                    Name = e.Name,
+                    IsSelected = false
+                }).ToList();
+        }
+        else _roomEquipment.Clear();
+    }
 
     private void OnCreateRoomChanged(ChangeEventArgs e)
     {
         if (int.TryParse(e.Value?.ToString(), out int newRoomId))
         {
             _newReservation.RoomId = newRoomId;
+            _ = LoadReservationsForRoom(newRoomId);
             UpdateRoomEquipment(newRoomId);
         }
+    }
+
+    private async Task LoadReservationsForRoom(int roomId)
+    {
+        _filterRoomId = roomId;
+        _reservations = await Api.GetReservationsForRoomAsync(roomId);
+        StateHasChanged();
     }
 
     private async Task HandleSubmit(EditContext context)
@@ -440,15 +517,15 @@ else
         if (context.Validate())
         {
             var created = await Api.CreateReservationAsync(_newReservation);
-            
+
             if (_filterRoomId == null || _filterRoomId == created.RoomId || created.RoomId == 0)
             {
                 _reservations.Insert(0, created);
             }
 
             _newReservation = new ReservationCreateDto();
-            foreach(var eq in _currentEquipmentList) eq.IsSelected = false;
-            
+            foreach (var eq in _currentEquipmentList) eq.IsSelected = false;
+
             if (_activeTab == "room" && _rooms.Any())
             {
                 _newReservation.RoomId = _rooms.First().Id;
@@ -461,35 +538,35 @@ else
         }
     }
 
-    private async Task RefreshReservationsAsync()
-    {
-        if (_filterRoomId is null) { _reservations.Clear(); return; }
-        _reservations = await Api.GetReservationsForRoomAsync(_filterRoomId.Value);
-    }
-    
     private async Task ApproveAsync(int id) { await Api.ApproveReservationAsync(id); await RefreshReservationsAsync(); }
     private async Task RejectAsync(int id) { await Api.RejectReservationAsync(id); await RefreshReservationsAsync(); }
     private async Task CancelAsync(int id) { await Api.CancelReservationAsync(id); await RefreshReservationsAsync(); }
     private async Task ConnectGoogle() { var url = await Api.GetGoogleAuthUrlAsync(); if (!string.IsNullOrEmpty(url)) Nav.NavigateTo(url, forceLoad: true); }
-    
+
     private async Task OnCalendarSourceChanged(ChangeEventArgs e) { _calendarTarget = e.Value?.ToString() ?? ""; await LoadCalendarData(); }
     private async Task PrevMonth() { _calendarDate = _calendarDate.AddMonths(-1); await LoadCalendarData(); }
     private async Task NextMonth() { _calendarDate = _calendarDate.AddMonths(1); await LoadCalendarData(); }
-    
+
     private async Task LoadCalendarData()
     {
         if (string.IsNullOrEmpty(_calendarTarget)) return;
         var parts = _calendarTarget.Split('_');
         var id = int.Parse(parts[1]);
-        
+
         if (parts[0] == "room") _calendarReservations = await Api.GetReservationsForRoomAsync(id);
         else _calendarReservations = await Api.GetReservationsForEquipmentAsync(id);
-        
+
         _calendarReservations = _calendarReservations.Where(r => r.Status != "Rejected" && r.Status != "Cancelled").ToList();
     }
-    
-    private List<ReservationDto> GetReservationsForDate(DateTime date) => 
+
+    private List<ReservationDto> GetReservationsForDate(DateTime date) =>
         _calendarReservations.Where(r => r.StartTimeUtc.ToLocalTime().Date == date.Date).ToList();
+
+    private async Task RefreshReservationsAsync()
+    {
+        if (_filterRoomId is null) { _reservations.Clear(); return; }
+        _reservations = await Api.GetReservationsForRoomAsync(_filterRoomId.Value);
+    }
 
     private string GetStatusColor(string status) => status switch { "Approved" => "bg-success", "Pending" => "bg-warning text-dark", "Rejected" => "bg-danger", _ => "bg-secondary" };
 }

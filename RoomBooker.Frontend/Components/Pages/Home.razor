@@ -1,110 +1,292 @@
 ﻿@page "/"
 @using RoomBooker.Core.Dtos
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Globalization
 @inject RoomBooker.Frontend.Services.ApiClient Api
+@inject RoomBooker.Frontend.Services.AuthState Auth
+@inject IJSRuntime JS
+@inject NavigationManager Nav
 
-<PageTitle>Grafik Zajęć</PageTitle>
+<PageTitle>Grafik i Opinie</PageTitle>
 
-<div class="text-center mb-5">
-    <h1 class="display-4">Grafik Rezerwacji</h1>
-    <p class="lead">Sprawdź dostępność sal. Zaloguj się, aby dokonać rezerwacji.</p>
+<div class="text-center mb-4">
+    <h1 class="display-5">Sprawdź Dostępność i Opinie</h1>
 </div>
 
 @if (_isLoading)
 {
-    <div class="text-center">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Ładowanie...</span>
-        </div>
-        <p>Pobieranie grafiku...</p>
+    <div class="text-center my-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2">Ładowanie danych...</p>
     </div>
 }
 else
 {
-    <div class="row justify-content-center mb-4">
-        <div class="col-md-6">
-            <select class="form-select form-select-lg" @onchange="OnRoomChanged">
-                @foreach (var room in _rooms)
-                {
-                    <option value="@room.Id">@room.Name (Miejsc: @room.Capacity)</option>
-                }
-            </select>
-        </div>
-    </div>
-
-    @if (_reservations.Any())
-    {
-        <div class="table-responsive">
-            <table class="table table-hover shadow-sm" style="background-color: white; border-radius: 8px;">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Od</th>
-                        <th>Do</th>
-                        <th>Cel rezerwacji</th>
-                        <th>Organizator</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var res in _reservations)
+    <div class="container">
+        <div class="row justify-content-center mb-4">
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Wybierz Salę:</label>
+                <select class="form-select form-select-lg shadow-sm" @onchange="OnRoomChanged">
+                    @foreach (var room in _rooms)
                     {
-                        <tr>
-                            <td>@res.StartTimeUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                            <td>@res.EndTimeUtc.ToLocalTime().ToString("HH:mm")</td>
-                            <td>@res.Purpose</td>
-                            <td>User #@res.UserId</td> 
-                            <td>
-                                @if(res.Status == "Approved")
+                        <option value="@room.Id" selected="@(room.Id == _selectedRoomId)">@room.Name (Miejsc: @room.Capacity)</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        @if (_selectedRoomId > 0)
+        {
+            <div class="row g-4">
+                <div class="col-lg-7">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h5 class="m-0">📅 Kalendarz Dostępności</h5>
+                            <div class="btn-group">
+                                <button class="btn btn-outline-secondary btn-sm" @onclick="PrevMonth">◀</button>
+                                <span class="btn btn-outline-secondary btn-sm disabled text-dark fw-bold" style="width: 140px; opacity: 1;">
+                                    @_calendarDate.ToString("MMMM yyyy")
+                                </span>
+                                <button class="btn btn-outline-secondary btn-sm" @onclick="NextMonth">▶</button>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="calendar-grid">
+                                @foreach (var day in new[] { "Pn", "Wt", "Śr", "Cz", "Pt", "Sb", "Nd" })
                                 {
-                                    <span class="badge bg-success">Zatwierdzona</span>
+                                    <div class="calendar-header text-muted small">@day</div>
                                 }
-                                else if(res.Status == "Pending")
+
+                                @for (int i = 0; i < _calendarOffset; i++)
                                 {
-                                    <span class="badge bg-warning text-dark">Oczekująca</span>
+                                    <div class="calendar-day empty bg-light"></div>
+                                }
+
+                                @for (int day = 1; day <= _daysInMonth; day++)
+                                {
+                                    var date = new DateTime(_calendarDate.Year, _calendarDate.Month, day);
+                                    var dayReservations = GetReservationsForDate(date);
+                                    var isBusy = dayReservations.Any();
+
+                                    <div class="calendar-day @(isBusy ? "busy" : "")">
+                                        <div class="day-number @(date.Date == DateTime.Today ? "today" : "")">@day</div>
+                                        <div class="events">
+                                            @foreach (var res in dayReservations)
+                                            {
+                                                <div class="event-badge" title="@res.Purpose">
+                                                    @res.StartTimeUtc.ToLocalTime().ToString("HH:mm") - @res.EndTimeUtc.ToLocalTime().ToString("HH:mm")
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-5">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-header bg-warning bg-opacity-10">
+                            <h5 class="m-0">⭐ Opinie Użytkowników</h5>
+                        </div>
+                        <div class="card-body d-flex flex-column">
+
+                            <div class="reviews-container flex-grow-1 mb-3 pe-2" style="max-height: 400px; overflow-y: auto;">
+                                @if (_currentReviews.Any())
+                                {
+                                    @foreach (var rev in _currentReviews)
+                                    {
+                                        <div class="card mb-2 border-0 bg-light">
+                                            <div class="card-body p-3">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <strong class="d-block">@rev.UserDisplayName</strong>
+                                                        <small class="text-muted">@rev.CreatedAt.ToLocalTime().ToString("d MMMM yyyy")</small>
+                                                    </div>
+                                                    <div class="text-warning">
+                                                        @for (int i = 0; i < rev.Rating; i++)
+                                                        {
+                                                            <span>★</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                                <p class="mt-2 mb-0 text-secondary">@rev.Comment</p>
+
+                                                @if (rev.IsMyReview)
+                                                {
+                                                    <div class="text-end mt-1">
+                                                        <button class="btn btn-link btn-sm text-danger p-0 text-decoration-none"
+                                                                style="font-size: 0.8rem;"
+                                                                @onclick="() => DeleteReview(rev.ReviewId)">
+                                                            Usuń moją opinię
+                                                        </button>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
                                 }
                                 else
                                 {
-                                    <span class="badge bg-secondary">@res.Status</span>
+                                    <div class="text-center py-5 text-muted">
+                                        <div class="display-4 mb-2">💬</div>
+                                        <p>Brak opinii dla tej sali.<br>Bądź pierwszy!</p>
+                                    </div>
                                 }
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
-    else
-    {
-        <div class="alert alert-info text-center">
-            Ta sala nie ma aktualnie żadnych rezerwacji. Jest wolna!
-        </div>
-    }
+                            </div>
+
+                            <div class="border-top pt-3">
+                                <AuthorizeView>
+                                    <Authorized>
+                                        @if (!_userHasReview)
+                                        {
+                                            <h6 class="card-subtitle mb-2 text-muted">Oceń salę po wizycie</h6>
+                                            <div class="mb-2 d-flex align-items-center gap-2">
+                                                <input type="range" class="form-range" min="1" max="5" @bind="_newReview.Rating" />
+                                                <span class="fw-bold text-warning fs-5">@_newReview.Rating/5</span>
+                                            </div>
+                                            <textarea class="form-control mb-2" rows="2" placeholder="Twoja opinia..." @bind="_newReview.Comment"></textarea>
+                                            <button class="btn btn-primary w-100" @onclick="AddReview">Wyślij opinię</button>
+
+                                            @if (!string.IsNullOrEmpty(_reviewError))
+                                            {
+                                                <div class="alert alert-warning mt-2 small py-2">
+                                                    ⚠️ @_reviewError
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <div class="alert alert-success text-center py-2 m-0">
+                                                Dziękujemy za opinię!
+                                            </div>
+                                        }
+                                    </Authorized>
+                                    <NotAuthorized>
+                                        <div class="text-center">
+                                            <a href="login" class="btn btn-outline-primary btn-sm">Zaloguj się</a>
+                                            <span class="text-muted small ms-2">aby dodać opinię.</span>
+                                        </div>
+                                    </NotAuthorized>
+                                </AuthorizeView>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
 }
+
+<style>
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 1px;
+        background-color: #dee2e6;
+        border: 1px solid #dee2e6;
+    }
+
+    .calendar-header {
+        background-color: #f8f9fa;
+        padding: 8px;
+        text-align: center;
+        font-weight: bold;
+    }
+
+    .calendar-day {
+        background-color: white;
+        min-height: 80px;
+        padding: 4px;
+        font-size: 0.9rem;
+    }
+
+        .calendar-day.busy {
+            background-color: #fff5f5;
+        }
+
+    .day-number {
+        font-weight: bold;
+        color: #adb5bd;
+        margin-bottom: 2px;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+
+        .day-number.today {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+    .event-badge {
+        background-color: #dc3545;
+        color: white;
+        font-size: 0.7rem;
+        padding: 1px 4px;
+        border-radius: 3px;
+        margin-bottom: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Scrollbar dla opinii */
+    .reviews-container::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .reviews-container::-webkit-scrollbar-thumb {
+        background-color: #ccc;
+        border-radius: 4px;
+    }
+</style>
 
 @code {
     private List<RoomDto> _rooms = new();
     private List<ReservationDto> _reservations = new();
-    private bool _isLoading = true;
-    private int _selectedRoomId;
+    private List<ReviewDto> _currentReviews = new();
 
-    protected override async Task OnInitializedAsync()
+    private int _selectedRoomId;
+    private bool _isLoading = true;
+
+    private DateTime _calendarDate = DateTime.Today;
+    private int _daysInMonth => DateTime.DaysInMonth(_calendarDate.Year, _calendarDate.Month);
+    private int _calendarOffset => ((int)new DateTime(_calendarDate.Year, _calendarDate.Month, 1).DayOfWeek + 6) % 7;
+
+    private ReviewCreateDto _newReview = new() { Rating = 5 };
+    private bool _userHasReview = false;
+    private string? _reviewError;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Auth.GetAuthenticationStateAsync();
+            await LoadRooms();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadRooms()
     {
         try
         {
             _rooms = await Api.GetRoomsAsync();
-
             if (_rooms.Any())
             {
                 _selectedRoomId = _rooms.First().Id;
-                await LoadReservations(_selectedRoomId);
+                await LoadRoomData(_selectedRoomId);
             }
         }
-        catch (Exception)
-        {
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+        catch (Exception) { }
+        finally { _isLoading = false; }
     }
 
     private async Task OnRoomChanged(ChangeEventArgs e)
@@ -112,17 +294,64 @@ else
         if (int.TryParse(e.Value?.ToString(), out int roomId))
         {
             _selectedRoomId = roomId;
-            await LoadReservations(roomId);
+            await LoadRoomData(roomId);
         }
     }
 
-    private async Task LoadReservations(int roomId)
+    private async Task LoadRoomData(int roomId)
     {
-        var allReservations = await Api.GetReservationsForRoomAsync(roomId);
-        
-        _reservations = allReservations
-            .Where(r => r.EndTimeUtc > DateTime.UtcNow && r.Status != "Rejected" && r.Status != "Cancelled")
-            .OrderBy(r => r.StartTimeUtc)
+        var t1 = Api.GetReservationsForRoomAsync(roomId);
+        var t2 = Api.GetReviewsForRoomAsync(roomId);
+
+        await Task.WhenAll(t1, t2);
+
+        _reservations = t1.Result
+            .Where(r => r.Status != "Rejected" && r.Status != "Cancelled")
             .ToList();
+
+        _currentReviews = t2.Result;
+        _userHasReview = _currentReviews.Any(r => r.IsMyReview);
+
+        _newReview = new ReviewCreateDto { Rating = 5 };
+        _reviewError = null;
+    }
+
+    private List<ReservationDto> GetReservationsForDate(DateTime date)
+    {
+        return _reservations.Where(r => r.StartTimeUtc.ToLocalTime().Date == date.Date).ToList();
+    }
+    private void PrevMonth() => _calendarDate = _calendarDate.AddMonths(-1);
+    private void NextMonth() => _calendarDate = _calendarDate.AddMonths(1);
+
+    private async Task AddReview()
+    {
+        _reviewError = null;
+        try
+        {
+            _newReview.RoomId = _selectedRoomId;
+            await Api.CreateReviewAsync(_newReview);
+            await LoadRoomData(_selectedRoomId);
+        }
+        catch (Exception ex)
+        {
+            if (ex.Message.Contains("nie odwiedziłeś") || ex.Message.Contains("wynajmowałeś"))
+            {
+                _reviewError = "Nie można wystawić opinii sali, której nie odwiedziłeś.";
+            }
+            else
+            {
+                _reviewError = ex.Message;
+            }
+        }
+    }
+
+    private async Task DeleteReview(int reviewId)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Czy na pewno chcesz usunąć swoją opinię?");
+        if (confirmed)
+        {
+            await Api.DeleteReviewAsync(reviewId);
+            await LoadRoomData(_selectedRoomId);
+        }
     }
 }

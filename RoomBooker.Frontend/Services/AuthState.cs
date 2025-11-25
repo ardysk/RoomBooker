@@ -26,7 +26,7 @@ namespace RoomBooker.Frontend.Services
             try
             {
                 var tokenResult = await _storage.GetAsync<string>("authToken");
-
+              
                 var emailResult = await _storage.GetAsync<string>("userEmail");
 
                 if (!tokenResult.Success || string.IsNullOrEmpty(tokenResult.Value))
@@ -40,7 +40,6 @@ namespace RoomBooker.Frontend.Services
                 if (emailResult.Success) _userEmail = emailResult.Value;
 
                 var claims = ParseClaimsFromJwt(token);
-                var identity = new ClaimsIdentity(claims, "jwt");
 
                 if (string.IsNullOrEmpty(_userEmail))
                 {
@@ -48,13 +47,28 @@ namespace RoomBooker.Frontend.Services
                                  ?? claims.FirstOrDefault(c => c.Type == "email")?.Value;
                 }
 
+                var identity = new ClaimsIdentity(claims, "jwt");
                 var user = new ClaimsPrincipal(identity);
+
                 return new AuthenticationState(user);
             }
             catch
             {
                 return emptyState;
             }
+        }
+
+        public async Task<int> GetUserId()
+        {
+            var state = await GetAuthenticationStateAsync();
+            var claim = state.User.FindFirst(ClaimTypes.NameIdentifier)
+                        ?? state.User.FindFirst("sub");
+
+            if (claim != null && int.TryParse(claim.Value, out int id))
+            {
+                return id;
+            }
+            return 0;
         }
 
         public async Task<bool> LoginAsync(string email, string password)
@@ -97,6 +111,7 @@ namespace RoomBooker.Frontend.Services
                 if (claimType == "role" || claimType == "Role") claimType = ClaimTypes.Role;
                 else if (claimType == "unique_name") claimType = ClaimTypes.Name;
                 else if (claimType == "email") claimType = ClaimTypes.Email;
+                else if (claimType == "sub") claimType = ClaimTypes.NameIdentifier; // Mapowanie ID
 
                 if (kvp.Value is JsonElement element && element.ValueKind == JsonValueKind.Array)
                 {
@@ -120,8 +135,8 @@ namespace RoomBooker.Frontend.Services
             }
             return Convert.FromBase64String(base64);
         }
-        public string? UserEmail => _userEmail;
 
+        public string? UserEmail => _userEmail;
         public bool IsAuthenticated => _apiClient.IsAuthenticated;
     }
 }

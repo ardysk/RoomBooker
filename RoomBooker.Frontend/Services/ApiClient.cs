@@ -237,4 +237,45 @@ public class ApiClient
         var response = await _http.DeleteAsync($"/api/Equipment/{id}");
         response.EnsureSuccessStatusCode();
     }
+
+    // --- Reviews ---
+    public async Task<List<ReviewDto>> GetReviewsForRoomAsync(int roomId)
+    {
+        await SetAuthHeader();
+        return await _http.GetFromJsonAsync<List<ReviewDto>>($"/api/Reviews/room/{roomId}") ?? new();
+    }
+
+    public async Task<List<ReviewDto>> GetAllReviewsAsync()
+    {
+        await SetAuthHeader();
+        return await _http.GetFromJsonAsync<List<ReviewDto>>("/api/Reviews/all") ?? new();
+    }
+
+    public async Task CreateReviewAsync(ReviewCreateDto dto)
+    {
+        await SetAuthHeader();
+        var response = await _http.PostAsJsonAsync("/api/Reviews", dto);
+        if (!response.IsSuccessStatusCode)
+        { 
+            var errorMsg = await response.Content.ReadAsStringAsync();
+            throw new Exception(errorMsg);
+        }
+    }
+
+    public async Task UpdateReviewAsync(int id, ReviewCreateDto dto)
+    {
+        await SetAuthHeader();
+        (await _http.PutAsJsonAsync($"/api/Reviews/{id}", dto)).EnsureSuccessStatusCode();
+    }
+
+    public async Task DeleteReviewAsync(int id)
+    {
+        await SetAuthHeader();
+        (await _http.DeleteAsync($"/api/Reviews/{id}")).EnsureSuccessStatusCode();
+    }
+    public async Task<List<ReviewDto>> GetMyReviewsAsync()
+    {
+        await SetAuthHeader();
+        return await _http.GetFromJsonAsync<List<ReviewDto>>("/api/Reviews/my") ?? new();
+    }
 }

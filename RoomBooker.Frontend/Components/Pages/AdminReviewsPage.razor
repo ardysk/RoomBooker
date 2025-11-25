@@ -1,0 +1,85 @@
+﻿@page "/admin/reviews"
+@using Microsoft.AspNetCore.Authorization
+@using RoomBooker.Core.Dtos
+@attribute [Authorize(Roles = "Admin")]
+@inject RoomBooker.Frontend.Services.ApiClient Api
+@inject IJSRuntime JS
+
+<h3>Moderacja Opinii</h3>
+
+@if (_reviews == null)
+{
+        <div class="spinner-border text-primary" role="status"></div>
+}
+else if (!_reviews.Any())
+{
+        <div class="alert alert-info">Brak opinii w systemie.</div>
+}
+else
+{
+        <table class="table table-striped table-light table-hover shadow-sm rounded-3 overflow-hidden">
+            <thead class="table-dark">
+                <tr>
+                    <th>Sala</th>
+                    <th>Użytkownik</th>
+                    <th>Ocena</th>
+                    <th>Komentarz</th>
+                    <th>Data</th>
+                    <th>Akcja</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var rev in _reviews)
+            {
+                        <tr>
+                            <td>@rev.RoomName</td>
+                            <td>@rev.UserDisplayName</td>
+                            <td>
+                                <span class="text-warning">
+                            @for (int i = 0; i < rev.Rating; i++)
+                            {
+                                <span>⭐</span>
+                            }
+                                </span>
+                            </td>
+                            <td>@rev.Comment</td>
+                            <td>@rev.CreatedAt.ToLocalTime().ToString("g")</td>
+                            <td>
+                                <button class="btn btn-danger btn-sm" @onclick="() => Delete(rev)">Usuń</button>
+                            </td>
+                        </tr>
+            }
+            </tbody>
+        </table>
+}
+
+@code {
+    private List<ReviewDto>? _reviews;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReviews();
+    }
+
+    private async Task LoadReviews()
+    {
+        try
+        {
+            _reviews = await Api.GetAllReviewsAsync();
+        }
+        catch (Exception)
+        {
+            _reviews = new List<ReviewDto>();
+        }
+    }
+
+    private async Task Delete(ReviewDto rev)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", $"Czy na pewno chcesz usunąć opinię użytkownika {rev.UserDisplayName}?");
+        if (confirmed)
+        {
+            await Api.DeleteReviewAsync(rev.ReviewId);
+            await LoadReviews();
+        }
+    }
+}

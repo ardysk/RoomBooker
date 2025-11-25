@@ -148,7 +148,7 @@ namespace RoomBooker.Infrastructure.Migrations
                 columns: new[] { "UserId", "DisplayName", "Email", "GoogleAccessToken", "GoogleRefreshToken", "GoogleTokenExpiration", "HashedPassword", "Role" },
                 values: new object[,]
                 {
-                    { 1, "Administrator", "admin@roombooker.local", null, null, null, "TOCKEN", "Admin" },
+                    { 1, "Administrator", "admin@roombooker.local", null, null, null, " ", "Admin" },
                     { 2, "Użytkownik", "user@roombooker.local", null, null, null, "user-hash-placeholder", "User" }
                 });
 

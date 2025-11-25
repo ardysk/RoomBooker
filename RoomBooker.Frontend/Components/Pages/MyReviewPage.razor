@@ -1,0 +1,116 @@
+﻿@page "/my-reviews"
+@using Microsoft.AspNetCore.Authorization
+@using RoomBooker.Core.Dtos
+@attribute [Authorize]
+@inject RoomBooker.Frontend.Services.ApiClient Api
+@inject IJSRuntime JS
+
+<h3>Moje Opinie</h3>
+
+@if (_isLoading)
+{
+    <div class="spinner-border text-primary" role="status"></div>
+}
+else if (_reviews.Count == 0)
+{
+    <div class="alert alert-info">Nie dodałeś jeszcze żadnych opinii.</div>
+}
+else
+{
+    <div class="row">
+        @foreach (var review in _reviews)
+        {
+            <div class="col-md-6 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>@review.RoomName</strong>
+                        <span class="text-warning">@string.Concat(Enumerable.Repeat("⭐", review.Rating))</span>
+                    </div>
+                    <div class="card-body">
+                        @if (_editingId == review.ReviewId)
+                        {
+                            <div class="mb-2">
+                                <label>Ocena:</label>
+                                <input type="range" class="form-range" min="1" max="5" @bind="_editRating" />
+                                <span>@_editRating / 5</span>
+                            </div>
+                            <textarea class="form-control mb-2" @bind="_editComment"></textarea>
+                            <button class="btn btn-success btn-sm" @onclick="() => SaveEdit(review.ReviewId, review.RoomId)">Zapisz</button>
+                            <button class="btn btn-secondary btn-sm" @onclick="CancelEdit">Anuluj</button>
+                        }
+                        else
+                        {
+                            <p class="card-text">@review.Comment</p>
+                            <small class="text-muted d-block mb-2">Dodano: @review.CreatedAt.ToLocalTime()</small>
+                            <button class="btn btn-outline-primary btn-sm" @onclick="() => StartEdit(review)">Edytuj</button>
+                            <button class="btn btn-outline-danger btn-sm" @onclick="() => DeleteReview(review.ReviewId)">Usuń</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<ReviewDto> _reviews = new();
+    private bool _isLoading = true;
+
+    private int? _editingId;
+    private int _editRating;
+    private string? _editComment;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReviews();
+    }
+
+    private async Task LoadReviews()
+    {
+        _isLoading = true;
+        try
+        {
+            _reviews = await Api.GetMyReviewsAsync();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void StartEdit(ReviewDto review)
+    {
+        _editingId = review.ReviewId;
+        _editRating = review.Rating;
+        _editComment = review.Comment;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+    }
+
+    private async Task SaveEdit(int reviewId, int roomId)
+    {
+        var dto = new ReviewCreateDto
+            {
+                RoomId = roomId,
+                Rating = _editRating,
+                Comment = _editComment
+            };
+
+        await Api.UpdateReviewAsync(reviewId, dto);
+        _editingId = null;
+        await LoadReviews();
+    }
+
+    private async Task DeleteReview(int id)
+    {
+        bool confirmed = await JS.InvokeAsync<bool>("confirm", "Czy na pewno usunąć opinię?");
+        if (confirmed)
+        {
+            await Api.DeleteReviewAsync(id);
+            await LoadReviews();
+        }
+    }
+}
